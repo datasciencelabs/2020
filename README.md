@@ -3,6 +3,21 @@
 * Course materials for Fall 2020 can be found here. 
 * Official course webpage here: [http://datasciencelabs.github.io](http://datasciencelabs.github.io)
 
+# Instructor
+* Dr. Heather Mattie
+* Lecturer on Biostatistics
+* Co-Director, Health Data Science Master's Program
+* hemattie@hsph.harvard.edu
+
+# Teaching Assistants
+
+* Andy Shi (andyshi@g.harvard.edu)
+* Jane Liang (jwliang@g.harvard.edu)
+* Kareem Carr (kareemcarr@g.harvard.edu)
+* Lara Maleyeff (lmaleyeff@g.harvard.edu)
+* Santiago Romero-Brufau (santiagoromerobrufau@hsph.harvard.edu)
+
+
 # Downloading course materials using Git with RStudio
 
 You can use Git within RStudio to download the course materials. If you
