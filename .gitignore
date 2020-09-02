@@ -2,3 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
+*personal*.Rmd
+*personal*.html
