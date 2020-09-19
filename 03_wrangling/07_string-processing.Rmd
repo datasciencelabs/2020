@@ -1224,7 +1224,7 @@ gapminder %>%
   distinct(country) 
 ```
 
-We have four countries with names longer than 12 characters. These names appear once for each year in the gapminder dataset and once we pick nicknames we need to change them all consistenly. The `recode` function can be used to do this:
+We have four countries with names longer than 12 characters. These names appear once for each year in the gapminder dataset and once we pick nicknames we need to change them all consistently. The `recode` function can be used to do this:
 
 
 ```{r}
