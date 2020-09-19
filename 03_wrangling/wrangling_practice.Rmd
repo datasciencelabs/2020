@@ -1,0 +1,37 @@
+---
+title: "In-class Examples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+```
+
+```{r}
+library(dplyr)
+library(dslabs)
+library(lubridate)
+```
+
+### Question 1
+How do I make the following strings dates?
+```{r}
+dates <- c("09-03-12", "12-4-9", "0610, 03", "Made on 27 6 1920")
+
+```
+
+### Question 2
+Create a data frame with columns `clean_dates`, `month`, `day` and `year`.
+
+```{r}
+
+```
+
+### Question 3
+Join the data frame you just created with the one below using `full_join`. Are there any missing values? 
+```{r}
+df2 <- data.frame(year = c(2003, 2009, 2012, 2016),
+										 age = c(17, 23, 26, 30))
+
+```
+
