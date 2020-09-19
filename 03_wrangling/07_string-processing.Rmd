@@ -276,9 +276,7 @@ sum(is.na(x))
 We can see some of the entries that are not successfully converted by `filter` to keep only the entries resulting in `NA`s:
 
 ```{r, warning=FALSE}
-reported_heights %>% mutate(new_height = as.numeric(height)) %>%
-                     filter(is.na(new_height)) %>% 
-                     head(n = 10)
+
 ```
 
 We immediately see what is happening. Some of the students did not report their heights in inches as requested. We could discard these data and continue. However, many of the entries follow patterns that, in principle, we can easily convert to inches. For example, in the output above we see various cases that use the format `x'y''` with `x` and `y` representing feet and inches respectively. Each one of these cases can be read and converted to inches by a human, for example `5'4''` is `5*12 + 4 = 64`. So we could fix all the problematic entries _by hand_.
@@ -307,7 +305,7 @@ length(problems)
 
 problematic entries!
 
-We can now view all the cases by simply printing them. We don't do that here becuase there are 292, but after surveying them carefully we see three patterns that are followed by three large groups.
+We can now view all the cases by simply printing them. We don't do that here because there are 292, but after surveying them carefully we see three patterns that are followed by three large groups.
 
 1. A pattern of the form `x'y` or `x' y''` or `x'y"` with `x` and `y` representing  feet and inches respectively. Here are ten examples:
 
@@ -484,7 +482,7 @@ In this case `123` does **not** match, but `12` does. So now to look for our fee
 With what we have learned we can now construct an example for the pattern `x'y\"` with `x` feet and `y` inches.
 
 ```{r}
-pattern <- "^[4-7]'\\d{1,2}\"$"
+pattern <- ""
 ```
 
 
@@ -564,7 +562,7 @@ identical("Hi", "Hi ")
 In regex, **`\s` represents white space**. So to find patterns like `5' 4`, we can change our pattern to
 
 ```{r}
-pattern_2 <- "^[4-7]'\\s\\d{1,2}\"$"
+pattern_2 <- ""
 str_subset(problems, pattern_2)
 ```
 
@@ -669,11 +667,28 @@ str_replace(s, pattern_with_groups, "\\1'\\2")
 
 We can use this to convert cases in our reported heights. 
 
-Now we are ready to define a pattern that helps us convert all the `x.y`, `x,y` and `x y` to our prefered format. We need to adapt `pattern_with_groups` to be bit more flexible and capture all the cases.
+Now we are ready to define a pattern that helps us convert all the `x.y`, `x,y` and `x y` to our preferred format. We need to adapt `pattern_with_groups` to be bit more flexible and capture all the cases.
 
 ```{r}
-pattern_with_groups <-"^([4-7])\\s*[,\\.\\s+]\\s*(\\d*)$"
+pattern_with_groups <-""
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Let's break this one down:
 
@@ -690,7 +705,7 @@ We can see that it appears to be working:
 str_subset(problems, pattern_with_groups) %>% head
 ```
 
-and will be able to perfrom the search and replace:
+and will be able to perform the search and replace:
 
 ```{r}
 str_subset(problems, pattern_with_groups) %>% 
@@ -789,7 +804,7 @@ Case 4, meters using commas, we can approach similarly to how we converted the `
 yes <- c("1,7", "1, 8", "2, " )
 no  <- c("5,8", "5,3,2", "1.7")
 s   <- c(yes, no)
-str_replace(s, "^([12])\\s*,\\s*(\\d*)$", "\\1\\.\\2")
+str_replace(s, "")
 ```
 
 We will later check if the entries are meters using their numeric values.
@@ -1062,7 +1077,7 @@ The data comes from a [paper](http://www.pnas.org/content/112/40/12349.abstract)
 knitr::include_graphics("pnas-table-s1.png")
 ```
 
-We could extract the numbers by hand, but this coud lead to human error. Instead we can try to wrangle the data using R. We start by downloading the pdf document then importing into R:
+We could extract the numbers by hand, but this could lead to human error. Instead we can try to wrangle the data using R. We start by downloading the pdf document then importing into R:
 
 ```{r, eval=FALSE}
 library("pdftools")
@@ -1103,13 +1118,13 @@ Because we start off with just one element in the string we end up with a list w
 tab <- tab[[1]]
 ```
 
-By examining this obejct
+By examining this object
 
 ```{r}
 tab %>% head
 ```
 
-we see that the information for the colmn names is the third and forth entires:
+we see that the information for the column names is the third and forth entries:
 
 ```{r}
 the_names_1 <- tab[3]
