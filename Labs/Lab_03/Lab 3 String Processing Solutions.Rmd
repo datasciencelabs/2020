@@ -1,0 +1,321 @@
+---
+title: 'Lab 3: String processing'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(pdftools)
+library(stringr)
+library(lubridate)
+```
+
+
+In this lab we'll be learning more about string processing using `stringr`, and `pdftools`. You'll also need the packages `lubridate`, `tidyverse`, and `dplyr`.
+
+### Problem 1: Birthdays
+
+For Problem 1 we are given a vector of birthdays. We want to convert these into ages, using today's date as the reference point.
+
+```{r}
+birthday <- c("September 1, 1955", 
+                 "06/21/1970",
+                 "1992 July 17th",
+                 "june 6 1980",
+                 "1/4/1995",
+                 "7/1/94",
+                 "06/03/1992",
+                 "7/28/00",
+                 "1990/09/22",
+                 "January 2, 1990",
+                 "February22nd,  '98",
+                 "June 3, 1982", 
+                 "08-2-1999",
+                 "2000-7-4")
+```
+
+
+#### Part (a)
+
+There are issues with the data we are given - what are they?
+
+**Solution:**
+- Some are written out and some are given in slash notation
+- Some put the day first, and some put the year first
+- There are random spaces and capitalization
+- Some have commas, some don't
+
+
+#### Part (b)
+
+Let's start cleaning this up - first let's decide the format that would be easiest to work with. 
+
+The package `lubridate` can help us with this. I provided code below to calculate age using my birthday.
+
+```{r}
+refDate = Sys.Date()
+birthDate = "1994-06-27"
+time_length(difftime(refDate, birthDate), "years")
+```
+
+Here I used `YYYY-MM-DD` for my birthday, but there are other options in `lubridate`. We will stick with `YYYY-MM-DD` to simplify things. Let's start with the "easier" cases and go from there.
+
+The first step is to find all dates of the form `DD/MM/YYYY`, `DD/MM/YY`, `DD-MM-YYYY`, etc. and create a new `data.frame` with 4 columns: `id`, `month`, `day`, and `year`. We'll do this together:
+
+```{r}
+ages = data.frame(id=1:length(birthday),dob=birthday)
+pattern1 <- "^(([1-9])|(0[1-9])|(1[0-2]))(/|-)\\d{1,2}(/|-)\\d{2,4}$"
+ages1 = ages %>% filter(str_detect(dob, pattern1)) %>%
+  separate(dob, c("month", "day", "year"), sep = "/|-") %>%
+  mutate_at(c("day","month"),str_remove, pattern="^0+") 
+ages_left = ages %>% filter(!str_detect(dob, pattern1)) 
+ages_left
+```
+
+Let's decode `pattern1`:
+
+- `^` = start of string
+- `|` = "or" operand 
+- `()` captures groupings, i.e. `A(nt)|(pple)` will match Ant or Apple
+- `(([1-9])|(0[1-9])|(1[0-2]))` = 1-9 or 01-09 or 10-12 (for month)
+- `(/|-)` = / or -
+- `\\d{1,2}` = one or two digits digit (for day)
+- `\\d{2,4}` = two or four digits (for year)
+- `$` = end of string
+
+Next find the dates in numeric format with year first, and add those to `ages1`.
+
+**Solution:**
+```{r}
+pattern2 <- "^\\d{4}(/|-)([1-9]|0[1-9]|1[0-2])(/|-)\\d{1,2}$"
+
+ages2 = ages_left %>% filter(str_detect(dob, pattern2)) %>%
+  separate(dob, c("year","month", "day"), sep = "/|-") %>%
+  mutate_at(c("day","month"),str_remove, pattern="^0+") 
+
+ages1 = rbind(ages1, ages2)
+ages_left = ages_left %>% filter(!str_detect(dob, pattern2)) 
+ages_left
+```
+
+Here `pattern2` is similar to `pattern1` but with year first. The entries with year first are all in the form `YYYY` (vs. `YY`) so we use `\\d{4}` instead of `\\d{2,4}`.
+
+#### Part (c)
+
+Now let's deal with the remaining cases. In all of them, month is spelled out (some with the first letter capitalized, some without). In every entry, date immediately follows month. Year is sometimes first and sometimes last, with either 2 or 4 digits. Since day can only take values in 1-31, and two-digit years only take values in 50-98 (see `ages_left`) we can easily differentiate between 2 digit days and 2 digit years.
+
+Try this out using the function `str_extract` and three different `patterns` for month, day, and year. You should be able to catch all the remaining entries.
+
+**Solution:**
+```{r}
+pattern_month="(?i)((January)|(February)|(March)|(April)|
+        (May)|(June)|(July)|(August)|(September)|October|(November)|(December))"
+pattern_year="(\\d{4})|(5[0-9])|(6[0-9])|
+                (7[0-9])|(8[0-9])|(9[0-9])"
+pattern_day= paste("(?<=",pattern_month,"\\s{0,1})\\d{1,2}", sep="")
+ages3 = ages_left %>%
+  mutate(
+        day=str_extract(dob,pattern_day),
+        month=str_extract(dob,pattern_month), 
+        year=str_extract(dob,pattern_year)) %>%
+    select(id,day,month,year)
+ages_parsed = rbind(ages1,ages3)
+ages_parsed
+```
+
+Let's decode the three patterns:
+
+`pattern_month` matches any correctly spelled month, case insensitive, at any
+point in the string.
+
+- `(?i)` means case insensitive
+- `|` = "or" operator
+- `()` = grouping
+
+For example `(January)|(February)|(March)` will match with January, February, or March.
+
+`pattern_year` matches any 4 digit number, or 2 digit numbers from 50-99 (i.e. any individuals born in 1950-1999), at any point in the string.
+
+- `|` = "or" operator
+- `()` = grouping
+- `(\\d{4})` = four digits
+- `(5[0-9])` = 50-59
+- `(6[0-9])` = 60-69
+- `(7[0-9])` = 70-79
+- `(8[0-9])` = 80-89
+- `(9[0-9])` = 90-99
+
+`patttern_day` matches any one or two digit number appearing immediately after month (with month able to appear anywhere in the string).
+
+- `?<=` is an operator used with `str_extract` to denote that everything contained within the `()` appearing after `?<=` is to be matched but not extracted. It allows us to say "give me the number appearing after month, but don't give me month". It is used specially when the text to be ignored comes *before* the desired output.
+- `\\s{0,1}` = zero or one space(s)
+- `\\d{1,2}` = one or two digit(s)
+
+#### Part (d)
+
+Our parsed data is almost ready! We just have to fix a few last issues. For this problem, please fix the following:
+
+1. The years that are 2 digits need to be 4 digits
+2. All months need to be in numeric format
+3. All single digits need to have a "0" in front
+
+*Hint*: for each of `year`,`month`,`day` create a parse function which takes as input one string and converts it to the proper format. Then use `sapply` to apply it over every element in the `data.frame`. For example, `sapply(year, year_parse)`.
+
+Next, add a new entry to your `data.frame` called dob. This should have the individual's birthday in the `YYYY-MM-DD` format so we can easily call the `compute_age` function below. You can do this using `paste(year,"-", month, "-", day, sep="")`.
+
+```{r}
+compute_age <- function(dob) {
+  refDate = Sys.Date()
+  return(time_length(difftime(refDate, dob), "years"))
+}
+```
+
+**Solution:**
+```{r final_parse}
+months = c("january","february","march","april","may","june","july",
+           "august","september","october","november", "december")
+
+year_parse <- function(year) {
+  if (as.numeric(year) < 20) {
+    year = paste("20", year, sep="")
+  }
+  else if (as.numeric(year) > 50 & as.numeric(year) < 100) {
+    year = paste("19", year, sep="")
+  }
+  return (year)
+}
+
+month_parse = function(month) {
+  month = tolower(month) 
+  if (month %in% months) {
+    month = match(month,months)
+  }
+  
+  if (as.numeric(month)<10) {
+    month = paste("0",month, sep="")
+  }
+  return(month)
+}
+
+day_parse <- function(day) {
+  if (as.numeric(day)<10) {
+    day = paste("0",day, sep="")
+  }
+  return(day)
+}
+
+
+ages_parsed = ages_parsed %>% mutate(year=sapply(year, year_parse),
+                month=sapply(month, month_parse),
+                day=sapply(day, day_parse),
+                dob=paste(year,"-", month, "-",day, sep=""))
+
+ages_parsed$age = sapply(ages_parsed$dob, compute_age)
+```
+
+
+### Problem 2: Weight
+
+For this problem, you are given a vector of user-generated weights in pounds and kilograms. Convert this vector into a `data.frame` with three columns: `weight_original`, `weight_kg`, `weight_lbs`. Recall that 1 kg = 2.2046 lbs.
+
+```{r}
+weight <- c("55 kg", 
+                "130 lbs",
+                "150 pounds",
+                "77 kilogram",
+                "84kg", 
+                "150 lb",
+                "124 pound",
+                "60 kg", 
+                "70 kg")
+  
+```
+
+**Solution:**
+
+```{r}
+weights <- data.frame(weight=weight)
+
+pattern_lb = "\\d{3}(?=\\s*((lb)|(lbs)|(pound)|(pounds)))"
+pattern_kg = "\\d{2}(?=\\s*((kilogram)|(kg)))"
+
+weights <- weights %>%
+        mutate(
+        weight_lbs=as.numeric(str_extract(weight,pattern_lb)),
+        weight_kg=as.numeric(str_extract(weight,pattern_kg)))
+weights[is.na(weights$weight_lbs),]$weight_lbs =
+          weights[is.na(weights$weight_lbs),]$weight_kg*2.2046
+weights[is.na(weights$weight_kg),]$weight_kg =
+          weights[is.na(weights$weight_kg),]$weight_lbs/2.2046
+weights = weights %>% mutate_at(-1, round)
+weights
+```
+
+Let's take a closer look at what we did here. `pattern_lbs` matches strings of the form 3 digit number, then any amount of space, then "lbs", "lb", "pound", or "pounds", and returns the 3 digit number only. 
+
+- `\\d{3}` = 3 digit number
+- `?=` is an operator used with `str_extract` to denote that everything contained within the `()` appearing after `?=` is to be matched but not extracted. It allows us to say "give me the number appearing before pounds, but don't give me pounds". It is used when the text to be ignored comes *after* the desired output (not to be confused with `?<=` which was used above to ignore text before the desired output).
+- `\\s*` = any amount of space, including no space
+- `((lb)|(lbs)|(pound)|(pounds)))` matches "lbs", "lb", "pound", or "pounds"
+
+`pattern_kg` is very similar, it matches 2 digit numbers, followed by any amount of space, followed by "kg" or "kilogram".
+
+- `\\d{2}` = 2 digit number
+
+### Problem 3: Extracting a table from a pdf
+
+For this problem, we'll be using the table shown on the first page of <https://www.who.int/docs/default-source/coronaviruse/situation-reports/20200809-covid-19-sitrep-202.pdf?sfvrsn=2c7459f6_2>. It has a list of coronavirus cases and deaths by geographic region of the world. The first step is to import the table:
+
+```{r import_table}
+temp_file <- tempfile()
+url <- "https://www.who.int/docs/default-source/coronaviruse/situation-reports/20200809-covid-19-sitrep-202.pdf?sfvrsn=2c7459f6_2"
+download.file(url, temp_file)
+txt <- pdf_text(temp_file)
+file.remove(temp_file)
+raw_covid <- txt[1]
+raw_covid
+```
+
+Here we have an array of length 1, with the table contents written as a string. There's a bunch of text at the beginning that we don't need - so let's get rid of everything after "(new cases in last 24 hours)" using the `str_sub` and `str_locate` functions.
+
+```{r split_string}
+raw_covid <- raw_covid %>% str_sub(
+  str_locate(raw_covid, "\\(new cases in last 24 hours\\)\n")[1,2]+1, nchar(raw_covid)
+)
+tab <- str_split(raw_covid, "\n")
+tab <- tab[[1]]
+tab
+```
+
+Now we have an array with 8 entries. The last entry is empty, but the others have a geographic region, followed by a bunch of space, followed by total overall cases, with new daily cases in parentheses, followed by a bunch of space, followed by total overall deaths, with new daily deaths in parentheses. There is also weird spacing in the numbers that we will want to fix. We want to transform this into a `data.frame` with 5 columns - `area`, `total_cases`, `daily_cases` `total_deaths`, `daily_deaths`.
+
+#### Part (a) 
+Create the `data.frame` described above. This involves splitting the string based on spaces of length > 2 using the `str_split` function, converting to a `data.frame`, naming the original three columns, removing the last empty row, separating `total_cases` into `total_cases` and `daily_cases` (hint: use the `separate` function with `sep="cases"`), and separating `total_deaths` into `total_deaths` and `daily_deaths` (hint: use the `separate` function with `sep="deaths"`). You can leave the numbers messy - we will fix this in the next question.
+
+**Solution:**
+```{r convert_df}
+new_covid <- tab %>%
+  str_split("\\s{2,}", simplify = TRUE)  %>%
+  data.frame() %>%
+  setNames(c("area", "total_cases", "total_deaths")) %>%
+  .[1:7,] %>%
+  separate(total_cases, c("total_cases","daily_cases"), sep = "cases") %>%
+  separate(total_deaths, c("total_deaths","daily_deaths"), sep = "deaths") 
+
+new_covid
+```
+
+#### Part (b) 
+Now that we have our `data.frame` we want to do two things: remove the spaces in the `total_cases`, `daily_cases`, `total_deaths`, and `daily_deaths` columns, and remove the parentheses in the `daily_cases` and `daily_deaths` columns (this can be done using `mutate_at` and `str_replace_all`) Then convert the numbers to numeric using `as.numeric` so we can manipulate them later. Recall that to match `(` and `)` you'll need to use `\\(` and `\\)` respectively, as these are special characters.
+
+**Solution:**
+```{r pretty_table}
+new_covid = new_covid %>% 
+                mutate_at(-1,str_replace_all," |\\(|\\)", "") %>%
+                mutate_at(-1, as.numeric)
+
+new_covid 
+```
+
