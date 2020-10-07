@@ -587,15 +587,15 @@ This plot now shows what is happening very clearly. The developing world distrib
 
 We can actually make this figure somewhat more informative. From the exploratory data analysis we noticed that many of the countries that most improved were from Asia. We can easily alter the plot to show key regions separately. 
 
-We  introduce the `case_when` function useful for defining groups. It currently does not have a data argument (this might change) so we need to access the components of our data table using the dot placeholder:
+We  introduce the `case_when` function useful for defining groups:
 
 ```{r}
 gapminder <- gapminder %>% 
   mutate(group = case_when(
-    .$region %in% west ~ "West",
-    .$region %in% c("Eastern Asia", "South-Eastern Asia") ~ "East Asia",
-    .$region %in% c("Caribbean", "Central America", "South America") ~ "Latin America",
-    .$continent == "Africa" & .$region != "Northern Africa" ~ "Sub-Saharan Africa",
+    region %in% west ~ "West",
+    region %in% c("Eastern Asia", "South-Eastern Asia") ~ "East Asia",
+    region %in% c("Caribbean", "Central America", "South America") ~ "Latin America",
+    continent == "Africa" & .$region != "Northern Africa" ~ "Sub-Saharan Africa",
     TRUE ~ "Others"))
 ```
 
@@ -657,13 +657,13 @@ Here we will focus on the relationship between country child survival rates and 
 ```{r}
 gapminder <- gapminder %>% 
   mutate(group = case_when(
-    .$region %in% west ~ "The West",
-    .$region %in% "Northern Africa" ~ "Northern Africa",
-    .$region %in% c("Eastern Asia", "South-Eastern Asia") ~ "East Asia",
-    .$region == "Southern Asia"~ "Southern Asia",
-    .$region %in% c("Central America", "South America", "Caribbean") ~ "Latin America",
-    .$continent == "Africa" & .$region != "Northern Africa" ~ "Sub-Saharan Africa",
-    .$region %in% c("Melanesia", "Micronesia", "Polynesia") ~ "Pacific Islands"))
+    region %in% west ~ "The West",
+    region %in% "Northern Africa" ~ "Northern Africa",
+    region %in% c("Eastern Asia", "South-Eastern Asia") ~ "East Asia",
+    region == "Southern Asia"~ "Southern Asia",
+    region %in% c("Central America", "South America", "Caribbean") ~ "Latin America",
+    continent == "Africa" & .$region != "Northern Africa" ~ "Sub-Saharan Africa",
+    region %in% c("Melanesia", "Micronesia", "Polynesia") ~ "Pacific Islands"))
 ```
 
 We then compute these quantities for each region. 
