@@ -162,6 +162,32 @@ As we saw in class, the function `summarize()` provides a useful way to combine 
 ##### 3) Calculate the increase in gdp per capita from the year prior by region and year. Explain any assumptions you had to make.
 
 
+```{r}
+#1 
+world_pop = gapminder %>% 
+  group_by(year) %>% 
+  summarize(population = sum(population, na.rm=TRUE)) %>%
+  ungroup()
+
+#2
+region_gdp_2010 = gapminder %>% 
+  filter(year==2010) %>% 
+  group_by(region) %>%
+  summarize(gdp = sum(gdp, na.rm=TRUE), 
+            population = sum(population, na.rm=TRUE)) %>%
+  mutate(gdp_per_capita = gdp/population) %>%
+  ungroup()
+
+#3
+region_gdp_increase = gapminder %>% 
+  arrange(year) %>%
+  group_by(region, year) %>%
+  summarize(gdp = sum(gdp, na.rm=TRUE), 
+            population = sum(population, na.rm=TRUE)) %>%
+  mutate(gdp_per_capita = gdp/population) %>%
+  mutate(gdp_per_capita_increase = gdp_per_capita - lag(gdp_per_capita)) %>%
+  ungroup()
+```
 
 
 ### 6. Web scraping

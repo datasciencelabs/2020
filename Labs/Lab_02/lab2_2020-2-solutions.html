@@ -385,10 +385,13 @@ summary {
 <pre class="r"><code>#install.packages(&#39;dplyr&#39;)
 #install.packages(&#39;dslabs&#39;)
 #install.packages(&#39;tidyr&#39;)
-library(tidyr)
-library(dplyr)
-library(dslabs)
-library(rvest)
+library(tidyr)</code></pre>
+<pre><code>## Warning: package &#39;tidyr&#39; was built under R version 4.0.2</code></pre>
+<pre class="r"><code>library(dplyr)</code></pre>
+<pre><code>## Warning: package &#39;dplyr&#39; was built under R version 4.0.2</code></pre>
+<pre class="r"><code>library(dslabs)</code></pre>
+<pre><code>## Warning: package &#39;dslabs&#39; was built under R version 4.0.2</code></pre>
+<pre class="r"><code>library(rvest)
 data(gapminder)
 
 df = gapminder
@@ -540,6 +543,31 @@ View(df)</code></pre>
 </div>
 <div id="calculate-the-increase-in-gdp-per-capita-from-the-year-prior-by-region-and-year.-explain-any-assumptions-you-had-to-make." class="section level5">
 <h5>3) Calculate the increase in gdp per capita from the year prior by region and year. Explain any assumptions you had to make.</h5>
+<pre class="r"><code>#1 
+world_pop = gapminder %&gt;% 
+  group_by(year) %&gt;% 
+  summarize(population = sum(population, na.rm=TRUE)) %&gt;%
+  ungroup()</code></pre>
+<pre><code>## `summarise()` ungrouping output (override with `.groups` argument)</code></pre>
+<pre class="r"><code>#2
+region_gdp_2010 = gapminder %&gt;% 
+  filter(year==2010) %&gt;% 
+  group_by(region) %&gt;%
+  summarize(gdp = sum(gdp, na.rm=TRUE), 
+            population = sum(population, na.rm=TRUE)) %&gt;%
+  mutate(gdp_per_capita = gdp/population) %&gt;%
+  ungroup()</code></pre>
+<pre><code>## `summarise()` ungrouping output (override with `.groups` argument)</code></pre>
+<pre class="r"><code>#3
+region_gdp_increase = gapminder %&gt;% 
+  arrange(year) %&gt;%
+  group_by(region, year) %&gt;%
+  summarize(gdp = sum(gdp, na.rm=TRUE), 
+            population = sum(population, na.rm=TRUE)) %&gt;%
+  mutate(gdp_per_capita = gdp/population) %&gt;%
+  mutate(gdp_per_capita_increase = gdp_per_capita - lag(gdp_per_capita)) %&gt;%
+  ungroup()</code></pre>
+<pre><code>## `summarise()` regrouping output by &#39;region&#39; (override with `.groups` argument)</code></pre>
 </div>
 </div>
 <div id="web-scraping" class="section level3">
@@ -589,27 +617,27 @@ tab = read_html(url) %&gt;% html_nodes(&quot;table&quot;)
 table2 = tab %&gt;% .[2] %&gt;% html_table(fill = TRUE) %&gt;% .[[1]]
 #deaths_df = tab %&gt;% .[3] %&gt;% html_table %&gt;% .[[1]]
 head(table2)</code></pre>
-<pre><code>##                          Rank                        Rank
-## 1  2018 data (2019 report)​[5]                        Rank
-## 2 Very high human development Very high human development
-## 3                           1                            
-## 4                           2                            
-## 5                           3                            
-## 6                           4                            
-##           Country or Territory                         HDI
-## 1 Change from previous year​[5]  2018 data (2019 report)​[5]
-## 2  Very high human development Very high human development
-## 3                       Norway                       0.954
-## 4                  Switzerland                       0.946
-## 5                      Ireland                       0.942
-## 6                      Germany                       0.939
-##                                        HDI                          NA
-## 1 Average annual HDI growth (2010–2018)​[6]                        &lt;NA&gt;
-## 2              Very high human development Very high human development
-## 3                                    0.16%                        &lt;NA&gt;
-## 4                                    0.18%                        &lt;NA&gt;
-## 5                                    0.71%                        &lt;NA&gt;
-## 6                                    0.25%                        &lt;NA&gt;</code></pre>
+<pre><code>##                                 Rank                        Rank
+## 1 2018 data (2019 report)&lt;U+200B&gt;[5]                        Rank
+## 2        Very high human development Very high human development
+## 3                                  1                            
+## 4                                  2                            
+## 5                                  3                            
+## 6                                  4                            
+##                   Country or Territory                                HDI
+## 1 Change from previous year&lt;U+200B&gt;[5] 2018 data (2019 report)&lt;U+200B&gt;[5]
+## 2          Very high human development        Very high human development
+## 3                               Norway                              0.954
+## 4                          Switzerland                              0.946
+## 5                              Ireland                              0.942
+## 6                              Germany                              0.939
+##                                                HDI                          NA
+## 1 Average annual HDI growth (2010–2018)&lt;U+200B&gt;[6]                        &lt;NA&gt;
+## 2                      Very high human development Very high human development
+## 3                                            0.16%                        &lt;NA&gt;
+## 4                                            0.18%                        &lt;NA&gt;
+## 5                                            0.71%                        &lt;NA&gt;
+## 6                                            0.25%                        &lt;NA&gt;</code></pre>
 <div id="how-many-columns-does-our-table-include-do-we-need-all-of-them-select-only-the-ones-that-we-need." class="section level5">
 <h5>1) How many columns does our table include? Do we need all of them? Select only the ones that we need.</h5>
 <pre class="r"><code>colnames(table2)</code></pre>
@@ -617,13 +645,13 @@ head(table2)</code></pre>
 ## [4] &quot;HDI&quot;                  &quot;HDI&quot;                  NA</code></pre>
 <pre class="r"><code>tableclean = table2 %&gt;% select(&#39;Country or Territory&#39;, 4)
 head(tableclean)</code></pre>
-<pre><code>##           Country or Territory                         HDI
-## 1 Change from previous year​[5]  2018 data (2019 report)​[5]
-## 2  Very high human development Very high human development
-## 3                       Norway                       0.954
-## 4                  Switzerland                       0.946
-## 5                      Ireland                       0.942
-## 6                      Germany                       0.939</code></pre>
+<pre><code>##                   Country or Territory                                HDI
+## 1 Change from previous year&lt;U+200B&gt;[5] 2018 data (2019 report)&lt;U+200B&gt;[5]
+## 2          Very high human development        Very high human development
+## 3                               Norway                              0.954
+## 4                          Switzerland                              0.946
+## 5                              Ireland                              0.942
+## 6                              Germany                              0.939</code></pre>
 </div>
 <div id="now-lets-join-the-table-we-just-created-with-a-table-that-includes-gdp-per-capita-by-country-for-the-last-year-that-its-available-which-is-2011.-what-will-we-join-by-what-type-of-join-function-is-most-appropriate" class="section level5">
 <h5>2) Now let’s join the table we just created with a table that includes gdp per capita by country for the last year that it’s available, which is 2011. What will we join by? What type of join function is most appropriate?</h5>
