@@ -396,7 +396,7 @@ In many cases we do not show the data because it adds clutter to the plot and ob
 
 
 ```{r}
-p + scale_y_continuous(trans = "log2") + geom_point(show.legend = FALSE) 
+p + scale_y_continuous(trans = "log2") + geom_point() 
 ```
 
 ### Comparing Distributions
@@ -506,8 +506,11 @@ gapminder %>%
   geom_boxplot() + 
   geom_point(show.legend = FALSE) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  xlab("") + ylab(paste("Fold Increase Between", past_year, "and", present_year)) +
+  xlab("") + ylab("Fold Increase Between 1970 and 2010") +
   scale_y_continuous(trans = "log2")  
+```
+```{r}
+ylab(paste("Fold Increase Between", past_year, "and", present_year))
 ```
   
 ### Smooth Density Plots
@@ -595,7 +598,7 @@ gapminder <- gapminder %>%
     region %in% west ~ "West",
     region %in% c("Eastern Asia", "South-Eastern Asia") ~ "East Asia",
     region %in% c("Caribbean", "Central America", "South America") ~ "Latin America",
-    continent == "Africa" & .$region != "Northern Africa" ~ "Sub-Saharan Africa",
+    continent == "Africa" & region != "Northern Africa" ~ "Sub-Saharan Africa",
     TRUE ~ "Others"))
 ```
 
@@ -662,7 +665,7 @@ gapminder <- gapminder %>%
     region %in% c("Eastern Asia", "South-Eastern Asia") ~ "East Asia",
     region == "Southern Asia"~ "Southern Asia",
     region %in% c("Central America", "South America", "Caribbean") ~ "Latin America",
-    continent == "Africa" & .$region != "Northern Africa" ~ "Sub-Saharan Africa",
+    continent == "Africa" & region != "Northern Africa" ~ "Sub-Saharan Africa",
     region %in% c("Melanesia", "Micronesia", "Polynesia") ~ "Pacific Islands"))
 ```
 
