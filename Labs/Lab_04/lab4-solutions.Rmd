@@ -184,12 +184,12 @@ georgia5_all_avg = georgia5_all %>%
   summarize(mean_new_cases = mean(new_cases))
 ```
 
-Setting `show.legend = FALSE` removes the legend, which is unnecessary now that all of the lines are gray. We can add the black average line by passing the new data frame into another call to `geom_line`. 
+Setting `aes(group = county)` in the first `geom_line` call ensures that a different gray line is plotted for each county. `georgia5_all_avg` does not have a `county` variable/grouping, which is why we didn't want to pass `group = county` into the `aes` in the top call to `ggplot`. We can add the black average line by passing `georgia5_all_avg` into another call to `geom_line`. 
 
 ```{r}
 ggplot(georgia5_all, aes(x = date, y = new_cases)) +
-  geom_line(color = "gray", show.legend = FALSE) + 
-  geom_line(data = georgia5_all_avg, aes(x = date, y = mean_new_cases)) + 
+  geom_line(color = "gray", aes(group = county)) +
+  geom_line(data = georgia5_all_avg, aes(x = date, y = mean_new_cases)) +
   xlab("Date") + ylab("New Cases")
 ```
 
@@ -208,7 +208,7 @@ ggplot(georgia5_all, aes(x = date, y = new_cases, color = county)) +
 ```
 
 
-10. Instead of putting all of the points and loess lines in a single plot, make a multi-panel plot with a panel for each country using `facet_wrap`. 
+10. Instead of putting all of the points and loess lines in a single plot, make a multi-panel plot with a panel for each county using `facet_wrap`. 
 
 **Solution:** 
 
