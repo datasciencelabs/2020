@@ -1,0 +1,274 @@
+---
+title: "Homework 1 Solutions"
+date: "Due 9/??/2020"
+output: html_document
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(rvest)
+library(lubridate)
+```
+
+The 2009 H1N1 influenza pandemic, known more colloquially as the swine flu, swept much of the world between April 2009 and August 2010. First detected in the United States, the novel A(H1N1)pdm09 virus is most closely related to the North American swine-lineage H1N1 and Eurasian lineage swine-origin H1N1 influenza viruses. Unlike most seasonal influenza strains, it does not disproportionately infect adults older than 65. A vaccine was quickly developed and widely distributed by the late fall of 2009, but A(H1N1)pdm09 continues to circulate as a seasonal flu virus [[source]](https://www.cdc.gov/flu/pandemic-resources/2009-h1n1-pandemic.html). 
+
+In this homework, we will be scraping and analyzing data from the Wikipedia article "2009 swine flu pandemic tables". The live link is available [here](https://en.wikipedia.org/wiki/2009_swine_flu_pandemic_tables), but for the purpose of this assignment, please use the permalink https://en.wikipedia.org/w/index.php?title=2009_swine_flu_pandemic_tables&oldid=95051192, which points to the most recent revision at the time of this writing. 
+
+The web page summarizes country-level information in two tables, one for A(H1N1)pdm09 cases and one for A(H1N1)pdm09 deaths. From April until July 5, 2009, the data was taken from the *Influenza A(H1N1) updates* issued roughly once every other day by the World Health Organization (WHO) [[source]](https://www.who.int/csr/disease/swineflu/updates/en/). Thereafter, the data was taken from the European Centre for Disease Prevention and Control (ECDC)'s *situation reports on Influenza A(H1N1)v*, which were published roughly three times a week [[archived source]](https://web.archive.org/web/20090812212650/http://www.ecdc.europa.eu/en/Health_topics/novel_influenza_virus/2009_Outbreak/). The ECDC stopped publishing case counts after August 9, 2009.   
+
+Variables in the **Swine flu cases to date** table: 
+
+- **By date**: Used for sorting rows by date of first confirmed case
+- **By cont.**: Used for sorting rows by date of first confirmed case by continent
+- **Country or territory**: Country name
+- **First case**: Date of first confirmed A(H1N1)pdm09 case in the country, YYYY-MM-DD format
+- **April**, **May**, **June**, **July**, **August**: Total number of confirmed A(H1N1)pdm09 cases on the first reported day of that month in 2009
+- **Latest (9 August)**: Total number of confirmed cases on August 9, 2009, the last day that the ECDC published A(H1N1)pdm09 case totals
+
+Variables in the **Swine flu deaths** table: 
+
+- **By date**: Used for sorting rows by date of first confirmed death
+- **By cont.**: Used for sorting rows by date of first confirmed death by continent
+- **Country**: Country name
+- **First death**: Date of first A(H1N1)pdm09 death in the country, YYYY-MM-DD format
+- **May**, **Jun**, **Jul**, **Aug**, **Sep**, **Oct**, **Nov**, **Dec**:  Total number of A(H1N1)pdm09 deaths on the first reported day of that month in 2009
+
+
+1. Use the `rvest` package to extract the table of case counts from the Wikipedia page, save it as a data frame called `cases_df`, and set the column names to the names supplied in the `case_names` vector. Then, extract the table of death counts, save it as a data frame called `deaths_df`, and set the column names to the names in `death_names`. As a sanity check, `cases_df` should have 177 rows and 10 columns, and `deaths_df` should have 125 rows and 13 columns. Hint: The `tab` variable contains all of the table elements in the Wikipedia article. Print it out and try to assess which index corresponds to the cases table and which index corresponds to the deaths table. 
+
+```{r}
+# Wikipedia article to scrape
+url = "https://en.wikipedia.org/w/index.php?title=2009_swine_flu_pandemic_tables&oldid=950511922"
+# If you are unable to access Wikipedia, uncomment and use the following 
+# line to read in the saved HTML file of the webpage
+# url = "h1n1_wiki_tables.html"
+
+# Extract all tables in the page
+tab = read_html(url) %>% html_nodes("table")
+
+# Variable names to use for the table of case counts
+case_names = c("by_date", "by_continent", "country", "first_case",
+                "April", "May", "June", "July", "August", "latest")
+# Variable names to use for the table of death counts
+death_names = c("by_date", "by_continent", "country", "first_death",
+                 "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+```
+
+**Solution:** 
+
+**10 points**
+
+- +5 for cases_df
+
+- +5 for deaths_df
+
+If we take a look at the list of tables in the `tab` output, it appears that the first table corresponds to the case counts and the second table corresponds the death counts. 
+
+```{r}
+tab
+```
+
+Then we can extract these tables, convert them to data frames, and assign the supplied variable names. 
+
+```{r}
+cases_df = tab %>% .[1] %>% html_table %>% .[[1]] %>% setNames(case_names)
+deaths_df = tab %>% .[2] %>% html_table %>% .[[1]] %>% setNames(death_names)
+```
+
+Double-check that there are indeed 177 rows and 10 columns in `cases_df` and 125 rows and 13 columns in `deaths_df`. 
+
+```{r}
+dim(cases_df)
+dim(deaths_df)
+```
+
+
+2. The first three rows of `cases_df` and the first two rows of `deaths_df` do not contain country-level information. (You can see this in the tables on the Wikipedia page, or you can check by running the `head` function on `cases_df` and `deaths_df`.) Drop these rows from your data frames. 
+
+**Solution:** 
+
+**5 points**
+
+- +5 for cases_df
+
+- +5 for deaths_df
+
+Check that the first three rows of of `cases_df` and the first two rows of `deaths_df` are not country-level.
+
+```{r}
+head(cases_df)
+```
+
+```{r}
+head(deaths_df)
+```
+
+Drop the offending observations. 
+
+```{r}
+cases_df = cases_df %>% slice(4:n())
+deaths_df = deaths_df %>% slice(3:n())
+```
+
+
+3. The `first_case` column in the `cases_df` data frame contains the date of the first confirmed case in YYYY-MM-DD format, but it is stored as a character variable. Convert `first_case` to a date type variable. 
+
+**Solution:** 
+
+**5 points**
+
+- -2 if incorrect dataframe
+
+```{r}
+cases_df = cases_df %>% mutate_at(vars(first_case), ymd)
+```
+
+
+4. Make a scatterplot of the number of cases reported by August 9, 2009 (the `latest` variable in `cases_df`) plotted against the date of the first confirmed case (the `first_case` variable, which you converted to a date type in Question 3). Based on this figure, would you say that the date of the first case is a good predictor for the number of cases on August 9?
+
+**Solution:** 
+
+**10 points**
+
+- +6 for figure (doesn't have to be with ggplot or look fancy/have nice labels)
+
+- +4 for text answer
+
+While there appears to be some connection between having an earlier first confirmed case and a higher case count, this is not a perfect predictor. There are many countries that have low case counts on August 9 despite having had their first case confirmed in May. There were probably other factors in play, such as population density or public health initiatives in different countries. 
+
+```{r}
+ggplot(cases_df, aes(x=first_case, y=latest)) + geom_point() +
+  labs(x ="Date of first case", y = "Cases", 
+       title="Cases on August 9, 2009 vs. date of first case")
+```
+
+
+5. Reshape `cases_df` into a new data frame called `long_cases_df` by gathering the month columns `c("April", "May", "June", "July", "August")`. Set the month column names to a new variable in the data called `month`, and set the column cells (the cases for each month) to a new variable called `cases`. When you are done, `long_cases_df` should have two new columns (`month` and `cases`) and no columns that are named after months. 
+
+   Similarly, reshape `deaths_df` into a new data frame called `long_deaths_df` by gathering the month columns `c("Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")`. Set the month column names to a new variable called `month`, and set the column cells (the deaths for each month) to a new variable called `deaths`. 
+
+**Solution:** 
+
+**10 points**
+
+- +5 for long_cases_df
+
+- +5 for long_deaths_df
+
+Note that `"April":"August"` tells `gather` to gather all of the columns between `"April"` and `"August"` in `cases_df`. It would have been equivalent (but longer) to pass in `c("April", "May", "June", "July", "August")` as the third argument. 
+
+```{r}
+long_cases_df = cases_df %>% gather(month, cases, "April":"August")
+long_deaths_df = deaths_df %>% gather(month, deaths, "Apr":"Dec")
+```
+
+
+6. In Question 7, we will combine `long_cases_df` with `long_deaths_df` to make a new data frame. But before we do that, we want to make the variables in the two data frames more consistent with each other. 
+
+   Extract the first three letters of the month names in the `month` variable in `long_cases_df`. Replace the `month` variable with these three-letter abbreviations. Hint: Use the `str_sub` function. 
+
+   In `long_deaths_df`, recode "USA" in the `country` variable as "United States of America". 
+
+**Solution:** 
+
+**10 points**
+
+- Not picky about using the pipe or recode
+
+```{r}
+long_cases_df = long_cases_df %>% mutate(month=str_sub(month, 1, 3))
+long_deaths_df = long_deaths_df %>% 
+  mutate(country=recode(country, USA="United States of America")) 
+```
+
+
+7. Use the `inner_join` function to combine `long_cases_df` and `long_deaths_df` by country and month. Save the result as a new data frame called `combined_df`. 
+
+   Optional: Clean up `combined_df` by keeping only the relevant columns: `country`, `month`, `cases`, and `deaths`. 
+
+**Solution:** 
+
+**10 points**
+
+- Using `select` not required
+
+- +5 for long_cases_df
+
+- +5 for long_deaths_df
+
+```{r}
+combined_df = inner_join(select(long_cases_df, country, month, cases), 
+                         select(long_deaths_df, country, month, deaths), 
+                         by = c("country", "month"))
+```
+
+
+8. Subset `combined_df` so that it only contains observations from the month of August, and drop all rows that contain missing values. Assign the result to a new data frame and report the number of rows it has. Hint: If you are working in the tidyverse, you can use the `drop_na` function to drop all rows that contain NAs.
+
+**Solution:** 
+
+**10 points**
+
+- +8 for correctly subsetting (+6 if incorrect but tried)
+
+- +2 for stating how many observations
+
+46 rows remain after subsetting the data to only include observations from August and dropping the rows with missing values. 
+
+```{r}
+august_df = combined_df %>% filter(month=="Aug") %>% drop_na()
+nrow(august_df)
+```
+
+
+9. Using your subsetted data frame from Question 8, plot the number of deaths against the number of cases reported by August 2009. Describe the relationship between the two variables. 
+
+   Optional: Can you comment on a few specific countries and whether or not they seem to be following the general trend (perhaps by labeling some of the points in your plot or by making a table)?
+
+**Solution:** 
+
+** 15 points**
+
+- +10 for plot (doesn't have to be fancy or use ggplot)
+
+- +5 for description
+
+Many countries in this dataset have very few cases and deaths, so it is a little hard to tell what is going on with them. However, it seems that there is a positive relationship between the number of cases and deaths. Note that because these are raw counts, they do not take into account country population. 
+
+The United States stands out as an outlier: it has a very high number of both cases and deaths. Some countries, like Argentina and Brazil, have far higher death counts than their case counts would imply. The opposite is true for some of the other countries, like Australia and the United Kingdom. 
+
+```{r}
+ggplot(august_df, aes(x=cases, y=deaths)) + geom_point() +
+  labs(x ="Cases", y = "Deaths", 
+       title="Deaths vs. cases in August 2009") + 
+  geom_text(data=subset(august_df, cases > 4000 | deaths > 40),
+            aes(x=cases, y=deaths, label=country), hjust=0.9, vjust=1)
+```
+
+There are only 46 observations left in the dataset, so you could feasibly print it out to check which countries have disproportionately high/low death counts. The following code outputs the countries with the top 10 case counts, which is a little easier to read and interpret. For example, you can see that Mexico has more than twice the number of deaths as Australia, even though it has fewer cases. 
+
+```{r}
+august_df %>% arrange(desc(cases)) %>% head(10)
+```
+
+
+10. Discuss the reliability of the A(H1N1)pdm09 data used in this assignment. This is an open-ended question, but if you are unsure of how to start, here are some points that you could consider: 
+
+- Do you trust the data sources? 
+- Is it problematic that the tables pull numbers from two different reporting sources?
+- How difficult is it to confirm an A(H1N1)pdm09 case or death? 
+- Do you expect the same level of reporting accuracy in all countries? 
+- Do you expect the reported counts to be overestimates or underestimates of the true values?
+- What other information (on data collection/reporting, or additional variables) would be useful to help you assess data reliability? 
+
+Please limit your response to no more than 1-2 paragraphs. You do not need to use outside sources, but if you do, be sure to cite them. 
+
+**Solution:** 
+
+**10 points**
+
+- +10 something that makes sense and is at last 2 sentences
+
+- -1 if they forget to cite sources
+
+A good response should discuss at least two different points/ideas (they do not need to come from the list supplied in the question) and provide some reasoning. 
