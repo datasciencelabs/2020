@@ -1,0 +1,68 @@
+---
+title: 'Lab 5: Shiny Apps and Mapping'
+output: html_document
+---
+
+This lab will guide you through building a Shiny app using the `USArrests` dataset, available in base R. This dataset contains the number of arrests per 100,000 residents for assault, murder, and rape in each of the 50 US states in 1973. Also reported is the percent of the population living in urban areas, from 1975. 
+
+
+## Step 1
+
+Create a basic Shiny app that includes a `radioButtons` input widget that allows the user to choose one of the three crimes (`Murder`, `Assault`, or `Rape`) and outputs a scatterplot with arrests per 100,000 for the selected crime on the y-axis and `UrbanPop` on the x-axis. Don't forget to load the `tidyverse` package as well as the `USArrests ` dataset.
+
+
+## Step 2
+
+To make the plots of the different arrest types more comparable to each other, fix the y-axis limits so that they stay the same regardless of which crime you have selected. However, when you do this, it becomes difficult to see trends for `Murder` and `Rape`, so also transform the y-axis using the `log10` transform. 
+
+
+## Step 3
+
+We have a working app, but we haven't tried putting the different components into an organized layout. Use the `siderbarLayout`, `sidebarPanel` and `mainPanel` functions to place the input widget in a sidebar on the left and the scatter plot in the main panel on the right. Include a title for your app using the `titlePanel` function.
+
+
+## Step 4
+
+Now include a `selectInput` widget that allows the user to decide what color they would like the points to be using a drop-down menu. Include the following colors: black, blue, red and green. Advanced: You can customize the names of the selection choices so that the colors are capitalized. 
+
+
+## Step 5
+
+The following code plots a map of the contiguous United States. 
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(maps)
+
+us_map = map_data("state") 
+
+ggplot(us_map, aes(x = long, y = lat, group = group)) +
+  geom_polygon(fill="gray", color = "white") + 
+  theme(panel.grid.major = element_blank(), 
+        panel.background = element_blank(),
+        axis.title = element_blank(), 
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+```
+
+Now, update your app so that the user can choose whether to view the scatterplot that we already have or a heatmap of the United States that is colored according to the selected crime type. To make the heatmap, you'll want to merge the `USArrests` data with the `us_map` data. What do you need to do to ensure that all of the (contiguous) states get merged successfully? Advanced: Use a different color palette for each crime's heatmap, to help the user immediately understand that they are on different scales. 
+
+
+## Step 6
+
+Update your app so that it prints a message indicating the state with the top arrest rate for the selected crime. Use the `textOutput` function in the `ui` function and the `renderText` function in the `server` function. 
+
+
+## Step 7
+
+In order to color your heatmap, you needed to merge the crime statistics in `USArrests` with the latitude and longitude information in `us_map`. This wasn't too inefficient, but if `USArrests` were a bigger data frame with more variables, this could slow down your computer and use up a lot of memory. Make the merged data frame for plotting the heatmap a reactive expression so that you only merge the selected crime in `USArrests` with `us_map`. 
+
+
+## Step 8 (Optional)
+
+Add some text before the input widgets that gives background/context to your app. Use the paragraph function `p()`. You may want to also use the `br()` function to add some space between the text and input widgets.
+
+
+## Step 9 (Optional)
+
+Create the same app, but with a different layout using the `multiRow` and `column` functions.

@@ -1,0 +1,502 @@
+---
+title: 'Lab 5: Shiny Apps and Mapping'
+output: html_document
+---
+
+This lab will guide you through building a Shiny app using the `USArrests` dataset, available in base R. This dataset contains the number of arrests per 100,000 residents for assault, murder, and rape in each of the 50 US states in 1973. Also reported is the percent of the population living in urban areas, from 1975. 
+
+
+## Step 1
+
+Create a basic Shiny app that includes a `radioButtons` input widget that allows the user to choose one of the three crimes (`Murder`, `Assault`, or `Rape`) and outputs a scatterplot with arrests per 100,000 for the selected crime on the y-axis and `UrbanPop` on the x-axis. Don't forget to load the `tidyverse` package as well as the `USArrests ` dataset.
+
+**Solution:** 
+
+```{r, eval=FALSE}
+library(tidyverse)
+
+# Arrest data
+data("USArrests")
+
+# Define UI
+ui = fluidPage( 
+    # Radio buttons that allows the user to choose a crime
+    radioButtons(inputId = "crime", label = "Select a crime",
+                 choices = c("Murder", "Assault", "Rape")), 
+    
+    # Plot
+    plotOutput("plot")
+)
+
+# Define server logic
+server = function(input, output){
+    # Scatterplot for the selected crime
+    output$plot = renderPlot({
+        ggplot(USArrests, aes_string(x = "UrbanPop", y = input$crime)) + 
+            geom_point() + 
+            xlab("Percent urban population in state") +
+            ylab(paste(input$crime, "arrests per 100,000"))
+    })
+}
+
+shinyApp(ui = ui, server = server)
+```
+
+
+## Step 2
+
+To make the plots of the different arrest types more comparable to each other, fix the y-axis limits so that they stay the same regardless of which crime you have selected. However, when you do this, it becomes difficult to see trends for `Murder` and `Rape`, so also transform the y-axis using the `log10` transform. 
+
+**Solution:** 
+
+Only the `server` function changes. 
+
+```{r, eval=FALSE}
+server = function(input, output){
+    # Scatterplot for the selected crime
+    output$plot = renderPlot({
+        ggplot(USArrests, aes_string(x = "UrbanPop", y = input$crime)) + 
+            geom_point() + 
+            scale_y_log10(limits = c(0.5, 340)) + 
+            xlab("Percent urban population in state") +
+            ylab(paste(input$crime, "arrests per 100,000 (log scale)"))
+    })
+}
+```
+
+
+## Step 3
+
+We have a working app, but we haven't tried putting the different components into an organized layout. Use the `siderbarLayout`, `sidebarPanel` and `mainPanel` functions to place the input widget in a sidebar on the left and the scatter plot in the main panel on the right. Include a title for your app using the `titlePanel` function.
+
+**Solution:** 
+
+Only the `ui` function changes.
+
+```{r, eval=FALSE}
+ui = fluidPage( 
+    titlePanel("1973 Violent Crime Arrests in the United States"),
+    
+    # Sidebar
+    sidebarLayout(
+        
+        # Widgets for selection
+        sidebarPanel(
+            # Radio buttons that allows the user to choose a crime
+            radioButtons(inputId = "crime", label = "Select a crime",
+                         choices = c("Murder", "Assault", "Rape"))
+        ),
+        
+        # Main panel
+        mainPanel(
+            # Plot
+            plotOutput("plot")
+        )
+    )
+)
+```
+
+
+## Step 4
+
+Now include a `selectInput` widget that allows the user to decide what color they would like the points to be using a drop-down menu. Include the following colors: black, blue, red and green. Advanced: You can customize the names of the selection choices so that the colors are capitalized. 
+
+**Solution:** 
+
+Both the `ui` and `server` functions change. 
+
+```{r, eval=FALSE}
+# Define UI
+ui = fluidPage( 
+    titlePanel("1973 Violent Crime Arrests in the United States"),
+    
+    # Sidebar
+    sidebarLayout(
+        
+        # Widgets for selection
+        sidebarPanel(
+            # Radio buttons that allows the user to choose a crime
+            radioButtons(inputId = "crime", label = "Select a crime",
+                         choices = c("Murder", "Assault", "Rape")),
+            
+            # Dropdown menu that allows the user to choose a point color for 
+            # the scatterplot
+            selectInput(inputId = "color", label = "Choose a point color",
+                        choices = c(Black = "black", Blue = "blue", 
+                                    Red = "red", Green = "green"))
+        ),
+        
+        # Main panel
+        mainPanel(
+            # Plot
+            plotOutput("plot")
+        )
+    )
+)
+
+# Define server logic
+server = function(input, output){
+    # Scatterplot for the selected crime
+    output$plot = renderPlot({
+        ggplot(USArrests, aes_string(x = "UrbanPop", y = input$crime)) + 
+            geom_point(color = input$color) + 
+            scale_y_log10(limits = c(0.5, 340)) + 
+            xlab("Percent urban population in state") +
+            ylab(paste(input$crime, "arrests per 100,000 (log scale)"))
+    })
+}
+```
+
+
+## Step 5
+
+The following code plots a map of the contiguous United States. 
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(maps)
+
+us_map = map_data("state") 
+
+ggplot(us_map, aes(x = long, y = lat, group = group)) +
+  geom_polygon(fill="gray", color = "white") + 
+  theme(panel.grid.major = element_blank(), 
+        panel.background = element_blank(),
+        axis.title = element_blank(), 
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+```
+
+Now, update your app so that the user can choose whether to view the scatterplot that we already have or a heatmap of the United States that is colored according to the selected crime type. To make the heatmap, you'll want to merge the `USArrests` data with the `us_map` data. What do you need to do to ensure that all of the (contiguous) states get merged successfully? Advanced: Use a different color palette for each crime's heatmap, to help the user immediately understand that they are on different scales. 
+
+**Solution:** 
+
+Both the `ui` and `server` functions change. The state names in `USArrests` are capitalized and stored as the row names, while the state names in `us_map` are lowercase and stored as the `region` variable. So, prior to merging, we added the new variable `region` to `USArrests`, which contains the lowercase state  names. We used a different color palette from `scale_fill_viridis_c` for each crime. 
+
+```{r, eval=FALSE}
+library(tidyverse)
+library(maps)
+
+# Arrest data
+data("USArrests")
+USArrests = USArrests %>% 
+  mutate(region = str_to_lower(rownames(USArrests)))
+
+# State latitude and longitude information
+us_map = map_data("state")
+# Merged data frame for mapping
+arrests_map = right_join(USArrests, us_map, by = "region")
+# Heatmap colors for different crime types
+gradient_fill = c(Murder = "viridis", Assault = "magma", Rape = "plasma")
+
+# Define UI
+ui = fluidPage( 
+    titlePanel("1973 Violent Crime Arrests in the United States"),
+    
+    # Sidebar
+    sidebarLayout(
+        
+        # Widgets for selection
+        sidebarPanel(
+            # Radio buttons that allows the user to choose a crime
+            radioButtons(inputId = "crime", label = "Select a crime",
+                         choices = c("Murder", "Assault", "Rape")),
+            
+            # Dropdown menu that allows the user to choose a point color for 
+            # the scatterplot
+            selectInput(inputId = "color", label = "Choose a point color",
+                        choices = c(Black = "black", Blue = "blue", 
+                                    Red = "red", Green = "green")),
+            
+            # Radio buttons for the user to choose a scatterplot or heatmap
+            radioButtons(inputId = "plot_type", label = "What kind of plot?",
+                         choices = c("Scatterplot", "Heatmap"))
+        ),
+        
+        # Main panel
+        mainPanel(
+            # Plot
+            plotOutput("plot")
+        )
+    )
+)
+
+# Define server logic
+server = function(input, output){
+    # Make the selected plot for the selected crime
+    output$plot = renderPlot({
+        if (input$plot_type == "Scatterplot"){
+            # Scatterplot for the selected crime
+            ggplot(USArrests, aes_string(x = "UrbanPop", y = input$crime)) + 
+                geom_point(color = input$color) + 
+                scale_y_log10(limits = c(0.5, 340)) + 
+                xlab("Percent urban population in state") +
+                ylab(paste(input$crime, "arrests per 100,000 (log scale)"))
+            
+        } else if (input$plot_type == "Heatmap"){
+            # Heatmap for the selected crime
+            arrests_map %>% ggplot(aes(x = long, y = lat, group = group)) +
+                geom_polygon(aes_string(fill = input$crime), color = "white") +
+                scale_fill_viridis_c(name = paste(input$crime, 
+                                                  "arrests \n per 100,000"), 
+                                     option = gradient_fill[input$crime]) + 
+                theme(panel.grid.major = element_blank(), 
+                      panel.background = element_blank(),
+                      axis.title = element_blank(), 
+                      axis.text = element_blank(),
+                      axis.ticks = element_blank())
+        }
+    })
+}
+```
+
+
+## Step 6
+
+Update your app so that it prints a message indicating the state with the top arrest rate for the selected crime. Use the `textOutput` function in the `ui` function and the `renderText` function in the `server` function. 
+
+**Solution:** 
+
+Both the `ui` and `server` functions change.
+
+```{r, eval=FALSE}
+# Define UI
+ui = fluidPage( 
+    titlePanel("1973 Violent Crime Arrests in the United States"),
+    
+    # Sidebar
+    sidebarLayout(
+        
+        # Widgets for selection
+        sidebarPanel(
+            # Radio buttons that allows the user to choose a crime
+            radioButtons(inputId = "crime", label = "Select a crime",
+                         choices = c("Murder", "Assault", "Rape")),
+            
+            # Dropdown menu that allows the user to choose a point color for 
+            # the scatterplot
+            selectInput(inputId = "color", label = "Choose a point color",
+                        choices = c(Black = "black", Blue = "blue", 
+                                    Red = "red", Green = "green")),
+            
+            # Radio buttons for the user to choose a scatterplot or heatmap
+            radioButtons(inputId = "plot_type", label = "What kind of plot?",
+                         choices = c("Scatterplot", "Heatmap"))
+        ),
+        
+        # Main panel
+        mainPanel(
+            # Plot
+            plotOutput("plot"),
+            # Message about the state with the most arrests per capita
+            textOutput("top_state")
+        )
+    )
+)
+
+# Define server logic
+server = function(input, output){
+    # Make the selected plot for the selected crime
+    output$plot = renderPlot({
+        if (input$plot_type == "Scatterplot"){
+            # Scatterplot for the selected crime
+            ggplot(USArrests, aes_string(x = "UrbanPop", y = input$crime)) + 
+                geom_point(color = input$color) + 
+                scale_y_log10(limits = c(0.5, 340)) + 
+                xlab("Percent urban population in state") +
+                ylab(paste(input$crime, "arrests per 100,000 (log scale)"))
+            
+        } else if (input$plot_type == "Heatmap"){
+            # Heatmap for the selected crime
+            arrests_map %>% ggplot(aes(x = long, y = lat, group = group)) +
+                geom_polygon(aes_string(fill = input$crime), color = "white") +
+                scale_fill_viridis_c(name = paste(input$crime, 
+                                                  "arrests \n per 100,000"), 
+                                     option = gradient_fill[input$crime]) + 
+                theme(panel.grid.major = element_blank(), 
+                      panel.background = element_blank(),
+                      axis.title = element_blank(), 
+                      axis.text = element_blank(),
+                      axis.ticks = element_blank())
+        }
+    })
+    
+    # Identify the state with the most arrests per capita for the selected crime
+    output$top_state = renderText({
+        top_state = USArrests %>% 
+            slice_max(order_by=!!as.name(input$crime), n=1) %>% 
+            select(region) %>% str_to_title()
+        paste0("The state with the most ", tolower(input$crime), 
+               " arrests per capita is ", top_state, ".")
+    })
+}
+```
+
+
+## Step 7
+
+In order to color your heatmap, you needed to merge the crime statistics in `USArrests` with the latitude and longitude information in `us_map`. This wasn't too inefficient, but if `USArrests` were a bigger data frame with more variables, this could slow down your computer and use up a lot of memory. Make the merged data frame for plotting the heatmap a reactive expression so that you only merge the selected crime in `USArrests` with `us_map`. 
+
+**Solution:** 
+
+Only the `server` function changes.
+
+```{r, eval=FALSE}
+library(tidyverse)
+library(maps)
+
+# Arrest data
+data("USArrests")
+USArrests = USArrests %>% 
+  mutate(region = str_to_lower(rownames(USArrests)))
+
+# State latitude and longitude information
+us_map = map_data("state")
+# Heatmap colors for different crime types
+gradient_fill = c(Murder = "viridis", Assault = "magma", Rape = "plasma")
+
+# Define server logic
+server = function(input, output){
+    # Reactive dataset for mapping
+    arrests_map = reactive(USArrests %>% select("region", input$crime) %>% 
+                               right_join(us_map, by = "region"))
+            
+    # Make the selected plot for the selected crime
+    output$plot = renderPlot({
+        if (input$plot_type == "Scatterplot"){
+            # Scatterplot for the selected crime
+            ggplot(USArrests, aes_string(x = "UrbanPop", y = input$crime)) + 
+                geom_point(color = input$color) + 
+                scale_y_log10(limits = c(0.5, 340)) + 
+                xlab("Percent urban population in state") +
+                ylab(paste(input$crime, "arrests per 100,000 (log scale)"))
+            
+        } else if (input$plot_type == "Heatmap"){
+            # Heatmap for the selected crime
+            arrests_map() %>% ggplot(aes(x = long, y = lat, group = group)) +
+                geom_polygon(aes_string(fill = input$crime), color = "white") +
+                scale_fill_viridis_c(name = paste(input$crime, 
+                                                  "arrests \n per 100,000"), 
+                                     option = gradient_fill[input$crime]) + 
+                theme(panel.grid.major = element_blank(), 
+                      panel.background = element_blank(),
+                      axis.title = element_blank(), 
+                      axis.text = element_blank(),
+                      axis.ticks = element_blank())
+        }
+    })
+    
+    # Identify the state with the most arrests per capita for the selected crime
+    output$top_state = renderText({
+        top_state = USArrests %>% 
+            slice_max(order_by=!!as.name(input$crime), n=1) %>% 
+            select(region) %>% str_to_title()
+        paste0("The state with the most ", tolower(input$crime), 
+               " arrests per capita is ", top_state, ".")
+    })
+}
+```
+
+
+## Step 8 (Optional)
+
+Add some text before the input widgets that gives background/context to your app. Use the paragraph function `p()`. You may want to also use the `br()` function to add some space between the text and input widgets.
+
+**Solution:** 
+
+Only the `ui` function changes. I also added a `br()` between the plot and the message about the top state to make it look nicer. 
+
+```{r, eval=FALSE}
+ui = fluidPage( 
+    titlePanel("1973 Violent Crime Arrests in the United States"),
+    
+    # Sidebar
+    sidebarLayout(
+        
+        # Widgets for selection
+        sidebarPanel(
+            # Explanatory text
+            p("This Shiny app uses the", code("USArrests"), "dataset to 
+              examine the variability in violent arrest statistics across 
+              states in the US."),
+            
+            br(),
+            
+            # Radio buttons that allows the user to choose a crime
+            radioButtons(inputId = "crime", label = "Select a crime",
+                         choices = c("Murder", "Assault", "Rape")),
+            
+            # Dropdown menu that allows the user to choose a point color for 
+            # the scatterplot
+            selectInput(inputId = "color", label = "Choose a point color",
+                        choices = c(Black = "black", Blue = "blue", 
+                                    Red = "red", Green = "green")),
+            
+            # Radio buttons for the user to choose a scatterplot or heatmap
+            radioButtons(inputId = "plot_type", label = "What kind of plot?",
+                         choices = c("Scatterplot", "Heatmap"))
+        ),
+        
+        # Main panel
+        mainPanel(
+            # Plot
+            plotOutput("plot"),
+            br(), 
+            # Message about the state with the most arrests per capita
+            textOutput("top_state")
+        )
+    )
+)
+```
+
+
+## Step 9 (Optional)
+
+Create the same app, but with a different layout using the `multiRow` and `column` functions.
+
+**Solution:** 
+
+Here is one example. Only the `ui` function changes.
+
+```{r, eval=FALSE}
+# Define UI
+ui = fluidPage( 
+    titlePanel("1973 Violent Crime Arrests in the United States"),
+    br(), # add some space 
+    # First row
+    fluidRow(
+        # Explanatory text
+        column(3,
+               p("This Shiny app uses the", code("USArrests"), "dataset to 
+              examine the variability in violent arrest statistics across 
+              states in the US.")
+        ),
+        # Radio buttons that allows the user to choose a crime
+        column(3, radioButtons(inputId = "crime", label = "Select a crime",
+                               choices = c("Murder", "Assault", "Rape"))
+        ),
+        # Dropdown menu that allows the user to choose a point color for 
+        # the scatterplot
+        column(3, selectInput(inputId = "color", label = "Choose a point color",
+                              choices = c(Black = "black", Blue = "blue", 
+                                          Red = "red", Green = "green"))
+               
+        ),
+        # Radio buttons for the user to choose a scatterplot or heatmap
+        column(3, radioButtons(inputId = "plot_type", label = "What kind of plot?",
+                               choices = c("Scatterplot", "Heatmap"))
+        )
+    ),
+    
+    # Add some space 
+    br(), 
+    
+    # Second row
+    fluidRow(
+        # Plot
+        column(9, plotOutput("plot")),
+        # Message about the state with the most arrests per capita
+        column(3, textOutput("top_state"))
+    )
+)
+```
