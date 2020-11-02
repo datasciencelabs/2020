@@ -193,7 +193,7 @@ Now I can write a function to automate this for any variable. Here, `{{ var }}` 
 ```{r, eval=FALSE}
 count_top <- function(df, var, n = 5) {
   df %>%
-    mutate({{ var }} := fct_lump_n(n = n)) %>%
+    mutate({{ var }} := fct_lump_n({{ var }}, n = n)) %>%
     group_by({{ var }}) %>%
     summarise(n = as.integer(sum(weight)))
 }
@@ -261,6 +261,7 @@ There are two parts to the solution. First we add a new row to the bottom of the
 
 
 The result of an action button is an integer that increments each time it’s clicked. Here I just use it to trigger a re-execution of the random selection:
+
 ```{r, eval=FALSE}
 output$narrative <- renderText({
     input$story
@@ -287,7 +288,7 @@ if (!exists("injuries")) {
 # fct_lump: lumps together the rest of the lesser occurring categories into one "other" category
 count_top <- function(df, var, n = 5) {
   df %>%
-    mutate({{ var }} := fct_lump(fct_infreq({{ var }}), n = n)) %>%
+    mutate({{ var }} := fct_lump_n({{ var }}, n = n)) %>%
     group_by({{ var }}) %>%
     summarise(n = as.integer(sum(weight)))
 }
