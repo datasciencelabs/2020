@@ -183,7 +183,7 @@ Now that we have the basic components in place, and working, we can progressivel
 
 ```{r, eval=FALSE}
 injuries %>%
-  mutate(diag = fct_lump(fct_infreq(diag), n = 5)) %>%
+  mutate(diag = fct_lump_n(5)) %>%
   group_by(diag) %>%
   summarise(n = as.integer(sum(weight)))
 ```
@@ -193,7 +193,7 @@ Because I knew how to do it, I wrote a little function to automate this for any 
 ```{r, eval=FALSE}
 count_top <- function(df, var, n = 5) {
   df %>%
-    mutate({{ var }} := fct_lump(fct_infreq({{ var }}), n = n)) %>%
+    mutate({{ var }} := fct_lump_n(n = n)) %>%
     group_by({{ var }}) %>%
     summarise(n = as.integer(sum(weight)))
 }
