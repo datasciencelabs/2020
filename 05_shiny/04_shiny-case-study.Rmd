@@ -179,7 +179,7 @@ Here is a screenshot of what we've made so far:
 
 ### Nicer tables
 
-Now that we have the basic components in place, and working, we can progressively improve our app. The first problem with this app is that it shows a lot of information in the tables, where we probably just want the highlights. To fix this we need to need to first figure out how to truncate the tables. I’ve chosen to do that with a combination of forcats functions: I convert the variable to a factor, order by the frequency of the levels, and then lump together all levels after the top 5.
+Now that we have the basic components in place, and working, we can progressively improve our app. The first problem with this app is that it shows a lot of information in the tables, where we probably just want the highlights. To fix this we need to need to first figure out how to truncate the tables. I’ve chosen to do that with the `fct_lump_n` function: I convert the variable to a factor, order by the frequency of the levels, and then lump together all levels after the top 5. The number 5 is arbitrary - I chose it because I think it looks nice. 
 
 ```{r, eval=FALSE}
 injuries %>%
@@ -188,7 +188,7 @@ injuries %>%
   summarise(n = as.integer(sum(weight)))
 ```
 
-Because I knew how to do it, I wrote a little function to automate this for any variable. The details aren’t really important here, and don’t worry if this looks totally foreign - you could also solve the problem via copy and paste.
+Now I can write a function to automate this for any variable. Here, `{{ var }}` "embraces" any variable between the double curly brackets and uses that variable as the column input for the mutate function.
 
 ```{r, eval=FALSE}
 count_top <- function(df, var, n = 5) {
@@ -200,7 +200,7 @@ count_top <- function(df, var, n = 5) {
 ```
 
 
-I then use this in the server function:
+I then add `width = "100%"` to the `renderTable` function in the server function to make each column span the entire space I've allowed it, making each column uniform in width. 
 
 ```{r, eval=FALSE}
 output$diag      <- renderTable(count_top(selected(), diag), width = "100%")
@@ -208,12 +208,12 @@ output$body_part <- renderTable(count_top(selected(), body_part), width = "100%"
 output$location  <- renderTable(count_top(selected(), location), width = "100%")
 ```
 
-I made one other change to improve the aesthetics of the app: I forced all tables to take up the maximum width (i.e. fill the column that they appear in). This makes the output more aesthetically pleasing because it reduces the amount of extraneous variaton.
+I made one other change to improve the aesthetics of the app: I forced all tables to take up the maximum width (i.e. fill the column that they appear in). This makes the output more aesthetically pleasing because it reduces the amount of extraneous variation.
 
 ![](images/nicer-tables.png)
 
 ### Rate vs Count
-So far, we’re displaying only a single plot, but we’d like to give the user the choice between visualising the number of injuries or the population-standardized rate. First I add a control to the UI. Here I’ve chosen to use a `selectInput()` because it makes both states explicit, and it would be easy to add new states in the future:
+So far, we’re displaying only a single plot, but we’d like to give the user the choice between visualizing the number of injuries or the population-standardized rate. First I add a control to the UI. Here I’ve chosen to use a `selectInput()` because it makes both states explicit, and it would be easy to add new states in the future:
 
 ```{r, eval=FALSE}
 fluidRow(
