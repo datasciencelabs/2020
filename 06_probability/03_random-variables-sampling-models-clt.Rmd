@@ -2,7 +2,7 @@
 
 Random variables are numeric outcomes resulting from random processes. We can easily generate random variables using some of the simple examples we have shown. For example, define `X` to be 1 if a bead is blue and 0 otherwise (if it's red).
 
-```{r,echo=FALSE, message=FALSE}
+```{r,echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
 dslabs::ds_theme_set()
 set.seed(1)
