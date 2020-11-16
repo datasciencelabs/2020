@@ -173,7 +173,7 @@ Previously, we discussed that if we know that the distribution of a list of numb
 
 ## The Expected Value and Standard Error
 
-We have described sampling models for draws. We will now go over the mathematical theory that lets us approximate the probability distributions for the sum of draws. Once we do this we will be able to help the casino predict how much money they will make. The same approach we use for the sum of draws will be useful for describing the distribution of averages and proportion which we will need to understand how polls work.
+We have described sampling models for draws. We will now go over the mathematical theory that lets us approximate the probability distributions for the sum of draws. Once we do this we will be able to help the casino predict how much money they will make. 
 
 The first important concept to learn is the _expected value_. 
 In statistics books it is common to use letter $\mbox{E}$ like this 
