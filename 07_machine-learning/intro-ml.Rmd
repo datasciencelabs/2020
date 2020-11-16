@@ -24,6 +24,8 @@ We want to build an algorithm that takes feature values as input and returns a p
 
 Here we will use $Y$ to denote the outcome and $X_1, \dots, X_p$ to denote features. **Features are sometimes referred to as predictors or covariates**.
 
+![](supervised_ml.png)
+
 
 Prediction problems can be divided into categorical and continuous outcomes. For categorical outcomes, the outcome $Y$ can be one of $K$ classes. The number of classes can vary greatly across applications. For example, for handwritten digits, $K = 10$ with the classes being the digits 0, 1, 2, 3, 4, 5, 6, 7, 8, and 9. In speech recognition, the outcome is all possible words we are trying to detect. Spam detection has two outcomes: spam or not spam. Here we denote the $K$ categories with indexes $k=1,\dots,K$. However, for binary data we will use $k = 0,1$. 
 
