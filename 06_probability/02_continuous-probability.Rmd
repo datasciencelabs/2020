@@ -153,6 +153,7 @@ n   <- length(x)
 avg <- mean(x)
 s   <- sd(x)
 simulated_heights <- rnorm(n, avg, s)
+simulated_heights
 ```
 
 Not surprisingly the distribution looks normal:

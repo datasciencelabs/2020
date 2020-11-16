@@ -391,7 +391,7 @@ beads</code></pre>
 <pre><code>## [1] &quot;red&quot;  &quot;red&quot;  &quot;blue&quot; &quot;blue&quot; &quot;blue&quot;</code></pre>
 <p>and then use <code>sample</code> to pick a bead at random:</p>
 <pre class="r"><code>sample(beads, 1)</code></pre>
-<pre><code>## [1] &quot;blue&quot;</code></pre>
+<pre><code>## [1] &quot;red&quot;</code></pre>
 <p>This line of code produces one random outcome. We want to repeat this experiment “over and over”. However, it is of course impossible to repeat forever. Instead, we repeat the experiment a large enough number of times to make the results practically equivalent. This is an example of a <em><strong>Monte Carlo</strong></em> simulation.</p>
 <p>Note that much of what mathematical and theoretical statisticians study, something we do not cover in this course, relates to providing rigorous definitions of “practically equivalent” as well as studying how close a large number of experiments gets us to what happens in the limit. Later in this lecture we provide a practical approach to deciding what is “large enough”.</p>
 <p>To perform our first Monte Carlo simulation we use the <code>replicate</code> function, which permits us to repeat the same task any number of times. Here we repeat the random event <span class="math inline">\(B =\)</span> 10,000 times:</p>
@@ -402,12 +402,12 @@ events &lt;- replicate(B, sample(beads, 1))</code></pre>
 tab</code></pre>
 <pre><code>## events
 ## blue  red 
-## 6020 3980</code></pre>
+## 5938 4062</code></pre>
 <p>and <code>prop.table</code> gives us the proportions:</p>
 <pre class="r"><code>prop.table(tab)</code></pre>
 <pre><code>## events
-##  blue   red 
-## 0.602 0.398</code></pre>
+##   blue    red 
+## 0.5938 0.4062</code></pre>
 <p>The numbers above are the estimated probabilities provided by this Monte Carlo simulation. Statistical theory, not covered here, tells us the as <span class="math inline">\(B\)</span> gets larger, the estimates get closer to 3/5 = 0.6 for blue and 2/5 = 0.4 for red.</p>
 <p>This is a simple and not very useful example, but we will use Monte Carlo simulation to estimate probabilities in cases in which it is harder to compute the exact ones. Before we go into more complex examples we use simple ones to demonstrate the computing tools available in R.</p>
 </div>
@@ -415,11 +415,11 @@ tab</code></pre>
 <h3>With and without replacement</h3>
 <p>The function <code>sample</code> has an argument that permits us to pick more than one element from the urn. However, by default, this selection occurs <strong><em>without replacement</em>: after a bead is selected, it is not put back in the bag</strong>. Note what happens when we ask to randomly select five beads:</p>
 <pre class="r"><code>sample(beads, 5)</code></pre>
-<pre><code>## [1] &quot;red&quot;  &quot;blue&quot; &quot;blue&quot; &quot;blue&quot; &quot;red&quot;</code></pre>
+<pre><code>## [1] &quot;blue&quot; &quot;blue&quot; &quot;red&quot;  &quot;blue&quot; &quot;red&quot;</code></pre>
+<pre class="r"><code>sample(beads, 5)</code></pre>
+<pre><code>## [1] &quot;blue&quot; &quot;red&quot;  &quot;blue&quot; &quot;blue&quot; &quot;red&quot;</code></pre>
 <pre class="r"><code>sample(beads, 5)</code></pre>
 <pre><code>## [1] &quot;red&quot;  &quot;blue&quot; &quot;red&quot;  &quot;blue&quot; &quot;blue&quot;</code></pre>
-<pre class="r"><code>sample(beads, 5)</code></pre>
-<pre><code>## [1] &quot;blue&quot; &quot;blue&quot; &quot;blue&quot; &quot;red&quot;  &quot;red&quot;</code></pre>
 <p>This results in rearrangements that always have three blue and two red beads. If we ask that six beads be selected, we get an error</p>
 <pre class="r"><code>sample(beads, 6)</code></pre>
 <p><code>Error in sample.int(length(x), size, replace, prob) :    cannot take a sample larger than the population when &#39;replace = FALSE&#39;</code></p>
@@ -429,7 +429,7 @@ tab</code></pre>
 prop.table(table(events))</code></pre>
 <pre><code>## events
 ##   blue    red 
-## 0.6012 0.3988</code></pre>
+## 0.6084 0.3916</code></pre>
 <p>Note that, not surprisingly, we get results very similar to those previously obtained with <code>replicate</code>.</p>
 </div>
 <div id="probability-distributions" class="section level3">

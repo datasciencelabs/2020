@@ -102,7 +102,7 @@ mean(S < 0)
 
 which we can see is quite low (less than 5%).
 
-From the histogram above we see that the distribution appears to be approximately normal. A qq-plot will confirm that the normal approximation is close to perfect. If in fact the distribution is normal then all we need to define the distribution is the average and the standard deviation. Because we have the original values from which the distribution is created, we can easily compute these:
+From the histogram above we see that the distribution appears to be approximately normal. If in fact the distribution is normal then all we need to define the distribution is the average and the standard deviation. Because we have the original values from which the distribution is created, we can easily compute these:
 
 ```{r}
 mean(S)
@@ -120,7 +120,7 @@ data.frame(S=S) %>% ggplot(aes(S, ..density..)) +
   geom_line(data = normal_density, mapping=aes(s,f), color="blue")
 ```
 
-This average and this standard deviation have special names: they are referred to as the _**expected value**_ and _**standard error**_ of the random variable $S$. We will say more about these in the next section. 
+This average and this standard deviation have special names: they are referred to as the _**expected value**_ and _**standard error**_ of the random variable $S$. 
 
 It turns out that statistical theory provides a way to derive the distribution of a random variable defined as independent random draws from an urn. Specifically, in our example above we can show that $(S+n)/2$ follows a binomial distribution. We therefore do not need to run Monte Carlo simulations to know the probability distribution of $S$. We did this for illustrative purposes. 
 
