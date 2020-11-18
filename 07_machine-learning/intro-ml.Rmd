@@ -242,7 +242,7 @@ test_set %>%
   summarize(accuracy = mean(y_hat == sex))
 ```
 
-There is an imbalance in the accuracy for males and females: too many females are predicted to be male. The reason this does not affect our overall accuracy is because the _prevalance_ of males in this dataset is high:
+There is an imbalance in the accuracy for males and females: too many females are predicted to be male. The reason this does not affect our overall accuracy is because the _prevalence_ of males in this dataset is high:
 
 ```{r}
 prev <- mean(y == "Male")
