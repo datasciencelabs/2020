@@ -229,7 +229,7 @@ y_hat <- ifelse(test_set$height > best_cutoff, "Male", "Female")
 mean(y_hat == test_set$sex)
 ```
 
-We see that it is lower than the accuracy observed for the training set, but it is still better than guessing. And by testing on a dataset that we did no train on, we know we did not cheat.
+We see that it is lower than the accuracy observed for the training set, but it is still better than guessing. And by testing on a dataset that we did not train on, we know we did not cheat.
 
 # Prevalence, Sensitivity and Specificity
 
@@ -281,9 +281,9 @@ library(e1071)
 confusionMatrix(data = as.factor(y_hat), reference = test_set$sex)
 ```
 
-We can see that the high accuracy is possible despite relatively low sensitivity. The reason this can happen is the low prevalence: because the proportion of females is low, incorrectly classifying them as males does not lower the accuracy as much as it is increased by most males being predicted as males. This is an example of why it important to examine sensitivity and specificity and not just accuracy. 
+We can see that the high accuracy is possible despite relatively low sensitivity. The reason this can happen is the low prevalence: because the proportion of females is low, incorrectly classifying them as males does not lower the accuracy as much as it is increased by most males being predicted as males. This is an example of why it's important to examine sensitivity and specificity and not just accuracy. 
 
-However, it is often useful to have one number summary, for example for optimization purposes. One metric is simply the average of specificity and sensitivity, refered to as  _**balanced accuracy**_. However, because these are rates, it is more appropriate to compute the harmonic average of specificity and sensitivity. In fact the _**F$_1$-score**_, a widely used one number summary, is the harmonic average of precision and recall:
+However, it is often useful to have one number summary, for example for optimization purposes. One metric is simply the average of specificity and sensitivity, referred to as  _**balanced accuracy**_. However, because these are rates, it is more appropriate to compute the harmonic average of specificity and sensitivity. In fact the _**F$_1$-score**_, a widely used one number summary, is the harmonic average of precision and recall:
 
 $$
 \frac{1}{\frac{1}{2}\left(\frac{1}{\mbox{recall}} + 
@@ -384,7 +384,7 @@ heights %>%
 
 Using data exploration let's see what this estimate of our conditional probability looks like for several values of $x$. We will remove values of $x$ with few data points using the `n()` function.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 heights %>% 
   mutate(x = round(height)) %>%
   group_by(x) %>%
@@ -403,7 +403,7 @@ p(x) = \mbox{Pr}( Y = 1 | X=x)  = \beta_0 + \beta_1 x
 $$
 
 If we can estimate $\beta_0$ and $\beta_1$ we will have an estimate of $p(x)$ which will permit us to build a classification algorithm.
-We will use the only fitting algorithm we currently know: least squares.
+We will use least squares (linear regression).
 
 ```{r}
 library(broom)
@@ -502,7 +502,7 @@ tmp %>%
 ```
 
 
-Because we have an estimate $\hat{p}(x)$ we can obtain predictions
+Because we have an estimate $\hat{p}(x)$ we can obtain predictions.
 
 ```{r}
 y_hat_logit <- ifelse(p_hat_logit > 0.5, "Female", "Male")
@@ -547,7 +547,7 @@ pi <- train_set %>%
 pi
 ```
 
-Now we can use our estimates of average and standard deviation estimates to get an actual rule:
+Now we can use our estimates of average and standard deviation to get an actual rule:
 
 ```{r}
 x <- test_set$height
@@ -581,7 +581,8 @@ In fact, we can show that the naive Bayes approach is similar to the logistic re
 ```{r}
 qplot(p_hat_logit, p_hat_bayes) + geom_abline()
 ```
-Let's look at the confusion matrix to see how well we are performing.
+
+Let's look at the confusion matrix to see how well we are performing. Our results are very close to what we got for our logistic regression model. 
 ```{r}
 y_hat_bayes <- ifelse(p_hat_bayes > 0.5, "Female", "Male")
 confusionMatrix(data = as.factor(y_hat_bayes), reference = test_set$sex)
@@ -621,9 +622,9 @@ y_hat_bayes_unbiased <- ifelse(p_hat_bayes_unbiased > 0.5, "Female", "Male")
 Note the difference in sensitivity with a better balance:
 
 ```{r}
-sensitivity(data = factor(y_hat_bayes_unbiased), reference = factor(test_set$sex))
-specificity(data = factor(y_hat_bayes_unbiased), reference = factor(test_set$sex))
+confusionMatrix(data = as.factor(y_hat_bayes_unbiased), reference = test_set$sex)
 ```
+
 
 The new rule also gives us a very intuitive cutoff of 67, which is about the middle of the female and male average heights:
 
@@ -632,7 +633,7 @@ The new rule also gives us a very intuitive cutoff of 67, which is about the mid
 qplot(x, p_hat_bayes_unbiased) + geom_hline(yintercept = 0.5) + geom_vline(xintercept = 67)
 ```
 
-Now that we know how to perform Naive Bayes by hand and understand the math behind it, we can use the `naiveBayes` function from the `e1071` package to do these calculations automatically. We see we get almost the exact same confusion matrix we got before we changed the prevalence. There may be some numerical rounding that results in 1 less male predicition using this function. 
+Now that we know how to perform Naive Bayes by hand and understand the math behind it, we can use the `naiveBayes` function from the `e1071` package to do these calculations automatically. We see we get almost the exact same confusion matrix we got before we changed the prevalence. There may be some numerical rounding that results in 1 less male prediction using this function. 
 
 ```{r}
 nb_fit   <- naiveBayes(sex ~ height, data = train_set)
