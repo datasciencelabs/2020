@@ -235,7 +235,7 @@ We see that it is lower than the accuracy observed for the training set, but it 
 
 The prediction rule we developed in the previous section was to predict `Male` if the student is taller than 65 inches. Given that the average female is about 65 inches, this prediction rule is bound to make many errors. If a student is the height of the average female, shouldn't we predict `Female`? A closer look at the confusion matrix reveals the problem. We look at the proportion of calls for each sex:
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 test_set %>% 
   mutate(y_hat = y_hat) %>%
   group_by(sex) %>% 
