@@ -178,6 +178,7 @@ We now introduce the `caret` package that has several useful functions for build
 library(caret)
 set.seed(1)
 train_index <- createDataPartition(y, times = 1, p = 0.5, list = FALSE)
+head(train_index)
 ```
 
 We can use this index to define the training and test sets:
@@ -185,6 +186,8 @@ We can use this index to define the training and test sets:
 ```{r}
 train_set <- heights[train_index, ]
 test_set <- heights[-train_index, ]
+head(train_set)
+head(test_set)
 ```
 
 Now let's use the train set to examine the accuracy of 11 different cutoffs:
@@ -483,7 +486,7 @@ p_hat_logit <- predict(glm_fit, newdata = test_set, type="response")
 
 Note that this model fits the data slightly better than the line:
 
-```{r conditional-prob-glm-fit, echo=FALSE }
+```{r conditional-prob-glm-fit, echo=FALSE, message=FALSE, warning=FALSE }
 tmp <- heights %>% 
   mutate(x = round(height)) %>%
   group_by(x) %>%
@@ -499,7 +502,7 @@ tmp %>%
 ```
 
 
-Because we have an estiamte $\hat{p}(x)$ we can obtain predictions
+Because we have an estimate $\hat{p}(x)$ we can obtain predictions
 
 ```{r}
 y_hat_logit <- ifelse(p_hat_logit > 0.5, "Female", "Male")
@@ -518,9 +521,9 @@ This gives us what we call _Bayes' Rule_. However, in practice we don't know Bay
 
 _Naive Bayes_ is an approach that tries to estimate $p(x)$ using Bayes theorem.
 
-In this particular example we know that the normal distribution works rather well for the heights $X$ for both classes $y=1$ (female) and $y=0$ (male). This implies that we can approximate the conditional distributions $f_{X|Y=1}$ and $f_{X|Y=0}$. These are the height distribuions for females and males respectively and we can easily estimate all the necessary parameters from the data:
+In this particular example we know that the normal distribution works rather well for the heights $X$ for both classes $y=1$ (female) and $y=0$ (male). This implies that we can approximate the conditional distributions $f_{X|Y=1}$ and $f_{X|Y=0}$. These are the height distributions for females and males respectively and we can easily estimate all the necessary parameters from the data:
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 params <- train_set %>% 
   group_by(sex) %>% 
   summarize(avg = mean(height), sd = sd(height))
@@ -535,12 +538,13 @@ p(x) = \mbox{Pr}(Y=1|X=x) = \frac{f_{X|Y=1}(x) \mbox{Pr}(Y=1)}
 { f_{X|Y=0}(x)\mbox{Pr}(Y=0)  + f_{X|Y=1}(x)\mbox{Pr}(Y=1) }
 $$
 
-The prevalance, which we will denote with $\pi = \mbox{Pr}(Y=1)$, can be estimated with 
+The prevalence, which we will denote with $\pi = \mbox{Pr}(Y=1)$, can be estimated with 
 
 ```{r}
 pi <- train_set %>% 
-  summarize(pi = mean(sex=="Female")) %>% 
+  summarize(pi = mean(sex == "Female")) %>% 
   .$pi
+pi
 ```
 
 Now we can use our estimates of average and standard deviation estimates to get an actual rule:
@@ -554,7 +558,7 @@ p_hat_bayes <- f1*pi / (f1*pi + f0*(1 - pi))
 
 Our naive Bayes estimate $\hat{p}(x)$ looks a lot like our logistic regression estimate:
 
-```{r conditional-prob-glm-fit-2, echo=FALSE }
+```{r conditional-prob-glm-fit-2, echo=FALSE, warning=FALSE, message=FALSE}
 tmp <- heights %>% 
   mutate(x = round(height)) %>%
   group_by(x) %>%
@@ -577,10 +581,17 @@ In fact, we can show that the naive Bayes approach is similar to the logistic re
 ```{r}
 qplot(p_hat_logit, p_hat_bayes) + geom_abline()
 ```
+Let's look at the confusion matrix to see how well we are performing.
+```{r}
+y_hat_bayes <- ifelse(p_hat_bayes > 0.5, "Female", "Male")
+confusionMatrix(data = as.factor(y_hat_bayes), reference = test_set$sex)
+```
 
-## Controlling prevelence
 
-One nice feature of the naive Bayes approach is that it includes a parameter to account for differences in prevelance. Using our sample we estimated $f_{X|Y=1}$, $f_{X|Y=0}$ and $\pi$. If we use hats to denote the estimates we can write $\hat{p}(x)$ as
+
+## Controlling prevalence
+
+One nice feature of the naive Bayes approach is that it includes a parameter to account for differences in prevalence. Using our sample we estimated $f_{X|Y=1}$, $f_{X|Y=0}$ and $\pi$. If we use hats to denote the estimates we can write $\hat{p}(x)$ as
 
 $$
 \hat{p}(x)= \frac{\hat{f}_{X|Y=1}(x) \hat{\pi}}
@@ -620,6 +631,19 @@ The new rule also gives us a very intuitive cutoff of 67, which is about the mid
 ```{r}
 qplot(x, p_hat_bayes_unbiased) + geom_hline(yintercept = 0.5) + geom_vline(xintercept = 67)
 ```
+
+Now that we know how to perform Naive Bayes by hand and understand the math behind it, we can use the `naiveBayes` function from the `e1071` package to do these calculations automatically. We see we get almost the exact same confusion matrix we got before we changed the prevalence. There may be some numerical rounding that results in 1 less male predicition using this function. 
+
+```{r}
+nb_fit   <- naiveBayes(sex ~ height, data = train_set)
+p_hat_nb <- predict(nb_fit, test_set)
+y_hat_nb <- ifelse(p_hat_logit > 0.5, "Female", "Male")
+
+confusionMatrix(data = as.factor(y_hat_nb), reference = test_set$sex)
+```
+
+
+
 
 
 # Two Predictors  
