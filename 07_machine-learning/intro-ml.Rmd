@@ -271,7 +271,7 @@ as.data.frame(mat) %>% knitr::kable()
 
 Sensitivity is typically quantified by $TP/(TP+FN)$, or the proportion of positives `TP+FN` that are called positives `TP`. This quantity is referred to as the _true positive rate_ (TPR) or _**recall**_. 
 
-Specificity is typically quantified as $TN/(TN+FP)$ or the proportion of negatives `TN+FP` that are called negatives `TN`. This quantity is called the true negative rate (TNR). Specificity is sometimes quantified with $TP/(TP+FP)$, the proportion of outcomes called positives $TP+FP$ that are actaully positives $TP$. This quantity is referred to as _**precision**_. Note that unlike TPR and TNR, precision depends on prevelance since higher prevalence implies you can get highter precision, even when guessing.
+Specificity is typically quantified as $TN/(TN+FP)$ or the proportion of negatives `TN+FP` that are called negatives `TN`. This quantity is called the true negative rate (TNR). Specificity is sometimes quantified with $TP/(TP+FP)$, the proportion of outcomes called positives $TP+FP$ that are actaully positives $TP$. This quantity is referred to as _**precision**_. Note that unlike TPR and TNR, precision depends on prevelance since higher prevalence implies you can get higher precision, even when guessing.
 
 The caret function `confusionMatrix` computes all these metrics for us once we define what a positive is. The function expects factors as input and coerces characters into factors. The first level is considered the positives. Here `Female` is the first level because it comes before `Male` alphabetically.
 
@@ -633,12 +633,13 @@ The new rule also gives us a very intuitive cutoff of 67, which is about the mid
 qplot(x, p_hat_bayes_unbiased) + geom_hline(yintercept = 0.5) + geom_vline(xintercept = 67)
 ```
 
-Now that we know how to perform Naive Bayes by hand and understand the math behind it, we can use the `naiveBayes` function from the `e1071` package to do these calculations automatically. We see we get almost the exact same confusion matrix we got before we changed the prevalence. There may be some numerical rounding that results in 1 less male prediction using this function. 
+Now that we know how to perform Naive Bayes by hand and understand the math behind it, we can use the `naiveBayes` function from the `e1071` package to do these calculations automatically. Here, `naiveBayes` outputs the prediction class automatically with a default cutoff of 0.5 for the probabilities. Thus, we don't need to classify a value as Female or Male using a threshold by hand.
+
+We see we get the exact same confusion matrix we got before we changed the prevalence.
 
 ```{r}
 nb_fit   <- naiveBayes(sex ~ height, data = train_set)
-p_hat_nb <- predict(nb_fit, test_set)
-y_hat_nb <- ifelse(p_hat_logit > 0.5, "Female", "Male")
+y_hat_nb <- predict(nb_fit, test_set)
 
 confusionMatrix(data = as.factor(y_hat_nb), reference = test_set$sex)
 ```
