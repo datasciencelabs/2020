@@ -1,0 +1,83 @@
+---
+title: 'Lab 8: Machine Learning I'
+output: html_document
+---
+
+In this lab, we will practice working with machine learning terminology and modeling approaches for classification. We will fit logistic regression and a Naive Bayes classifier to breast cancer biopsy data from the University of Wisconsin. This dataset is available as `brca` in the `dslabs` package and is also part of the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+(Diagnostic)). `brca` is a binary classification dataset for 569 malignant (cancer) and benign (not cancer) breast masses. 30 continuous features were computationally extracted from digital images of fine needle aspirate biopsy slides. 
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(caret)
+
+library(dslabs)
+data(brca)
+```
+
+For simplicity, let's focus on only the first two predictors, `radius_mean` and `texture_mean`. In the code chunk below, we construct a data frame called `dat` with four variables: 
+
+- `labels`: a factor with two levels denoting whether a mass is "Benign" or "Malignant". This will be useful for summarizing and plotting the data. 
+- `y`: a numeric vector that encodes the outcomes as 0 for Benign and 1 for Malignant. This will be useful for model fitting. 
+- `radius_mean`: the mean nucleus radius
+- `texture_mean`: the mean nucleus texture
+
+```{r}
+dat = data.frame(labels = factor(ifelse(brca$y == "B", "Benign", "Malignant")), 
+                 y = ifelse(brca$y == "B", 0, 1), 
+                 radius_mean = brca$x[,"radius_mean"], 
+                 texture_mean = brca$x[,"texture_mean"])
+```
+
+Here, we use the `createDataPartition` function from the `caret` package to randomly split the data into training and test datasets. Setting `p = 0.5` creates training and test datasets of (approximately) equal sizes. `set.seed(260)` ensures reproducibility, so that we get the same random split every time. 
+
+```{r}
+set.seed(260)
+index_train = createDataPartition(y = dat$labels, 
+                                  times = 1, p = 0.5, list = FALSE)
+train_set = slice(dat, index_train)
+test_set = slice(dat, -index_train)
+```
+
+
+1. Before doing any model fitting, it is always a good idea to perform some exploratory data analysis. Based on the training set, calculate summary statistics and make plots to help you get a better sense of the data. In particular, use your explorations to comment on the prevalence of the outcome, the relationships between the variables, and anything that you would consider unusual. 
+
+
+2. Using the `glm` function, fit a logistic regression model to the training set that predicts `y` based on `radius_mean` and `texture_mean`. Don't forget to set `family = "binomial"`. Then, use the `predict` function to get probability estimates for the test set, and convert the probabilities to predicted response labels (use a cutoff of 0.5). 
+
+   Obtain the accuracy, confusion matrix, and other relevant diagnostic statistics for the test set. Explain what the confusion matrix and the sensitivity/specificity are telling you about the types of errors that your model is making. 
+
+
+3. Build a Naive Bayes classifier for this dataset by hand. Recall that the decision rule can be expressed as
+
+   $$
+   p(x) = \mbox{Pr}(Y=1|X=x) = \frac{f_{X|Y=1}(x) \mbox{Pr}(Y=1)}
+{ f_{X|Y=0}(x)\mbox{Pr}(Y=0) + f_{X|Y=1}(x)\mbox{Pr}(Y=1)}.
+   $$
+
+   If we assume conditional independence, then 
+
+   $$
+   f_{X|Y=1}(x) = f_{X_1|Y=1}(x_1) f_{X_2|Y=1}(x_2) 
+   $$
+
+   and 
+
+   $$
+   f_{X|Y=0}(x) = f_{X_1|Y=0}(x_1) f_{X_2|Y=0}(x_2), 
+   $$
+
+   where $X_1$ represents `radius_mean` and $X_2$ represents `texture_mean`. 
+
+   Breaking it down step by step: 
+
+   - Calculate the prior prevalence of malignant masses $\pi = \mbox{Pr}(Y=1)$ in the training set. 
+   - Calculate the likelihood parameters (the average and standard deviation) for `radius_mean` in the training set. Repeat for `texture_mean`. 
+   - Using the test set data, the parameters from the previous step, and the `dnorm` function, calculate the likelihoods $f_{X_1|Y=1}(x_1)$, $f_{X_2|Y=1}(x_2)$, $f_{X_1|Y=0}(x_1)$, and $f_{X_2|Y=0}(x_2)$. 
+   - Put it all together to calculate the decision rule. 
+   - Convert the probabilities from your decision rule to predicted response labels (use a cutoff of 0.5). 
+
+   When you are done, obtain the accuracy, confusion matrix, and other relevant diagnostic statistics for the test set. Compare the performance of your Naive Bayes model with the logistic regression model from Q2. 
+
+   Note: If you would like to check your work (or just for future reference), the `e1071` package implements Naive Bayes as the `naiveBayes` function. 
+
+
+4. Make a scatterplot of `radius_mean` vs. `texture_mean` in the test dataset. Color the points that both models classify as "Benign" in one color, the points that both models classify as "Malignant" in a second color, and the points where the models disagree in a third color. Based on this visualization, does it make sense that these observations are the ones that the two classifiers did not agree on? Do these observations tend to belong to a particular outcome class? 

@@ -1,0 +1,251 @@
+---
+title: 'Lab 8: Machine Learning I'
+output: html_document
+---
+
+In this lab, we will practice working with machine learning terminology and modeling approaches for classification. We will fit logistic regression and a Naive Bayes classifier to breast cancer biopsy data from the University of Wisconsin. This dataset is available as `brca` in the `dslabs` package and is also part of the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+(Diagnostic)). `brca` is a binary classification dataset for 569 malignant (cancer) and benign (not cancer) breast masses. 30 continuous features were computationally extracted from digital images of fine needle aspirate biopsy slides. 
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(caret)
+
+library(dslabs)
+data(brca)
+```
+
+For simplicity, let's focus on only the first two predictors, `radius_mean` and `texture_mean`. In the code chunk below, we construct a data frame called `dat` with four variables: 
+
+- `labels`: a factor with two levels denoting whether a mass is "Benign" or "Malignant". This will be useful for summarizing and plotting the data. 
+- `y`: a numeric vector that encodes the outcomes as 0 for Benign and 1 for Malignant. This will be useful for model fitting. 
+- `radius_mean`: the mean nucleus radius
+- `texture_mean`: the mean nucleus texture
+
+```{r}
+dat = data.frame(labels = factor(ifelse(brca$y == "B", "Benign", "Malignant")), 
+                 y = ifelse(brca$y == "B", 0, 1), 
+                 radius_mean = brca$x[,"radius_mean"], 
+                 texture_mean = brca$x[,"texture_mean"])
+```
+
+Here, we use the `createDataPartition` function from the `caret` package to randomly split the data into training and test datasets. Setting `p = 0.5` creates training and test datasets of (approximately) equal sizes. `set.seed(260)` ensures reproducibility, so that we get the same random split every time. 
+
+```{r}
+set.seed(260)
+index_train = createDataPartition(y = dat$labels, 
+                                  times = 1, p = 0.5, list = FALSE)
+train_set = slice(dat, index_train)
+test_set = slice(dat, -index_train)
+```
+
+
+1. Before doing any model fitting, it is always a good idea to perform some exploratory data analysis. Based on the training set, calculate summary statistics and make plots to help you get a better sense of the data. In particular, use your explorations to comment on the prevalence of the outcome, the relationships between the variables, and anything that you would consider unusual. 
+
+**Solution:** 
+
+(Note that this solution is non-exhaustive, and that there are many other things that you could do as part of your EDA.) 
+
+Here's a quick way to get summary statistics for every variable in the data frame. 
+
+```{r}
+train_set %>% summary()
+```
+
+You could have gotten the prevalence of the outcome directly from the summary statistics above, or you could calculate it like this
+
+```{r}
+mean(train_set$y)
+```
+
+or like this
+
+```{r}
+train_set %>% 
+  summarize(pi = mean(labels=="Malignant")) %>% 
+  .$pi
+```
+
+As you can see, there is a lower prevalence of malignant masses compared to benign masses in this dataset. 
+
+Histograms can give us a quick snapshot of the univariate distributions of the two continuous predictors. Both `radius_mean` and `texture_mean` look roughly unimodal and symmetric, although both have a longer right tail. 
+
+```{r}
+train_set %>% 
+  gather(feature_name, measurement, c("radius_mean", "texture_mean"))  %>% 
+  ggplot(aes(measurement)) + 
+  geom_histogram() + 
+  facet_wrap(~ feature_name, 
+             labeller = as_labeller(c("radius_mean"="Radius Mean", 
+                                      "texture_mean" = "Texture Mean"))) + 
+  xlab("") + ylab("")
+```
+
+These boxplots suggest that malignant masses generally correspond to higher values of both the `radius_mean` and `texture_mean` variables. 
+
+```{r}
+train_set %>% 
+  gather(feature_name, measurement, c("radius_mean", "texture_mean"))  %>% 
+  ggplot(aes(x = labels, y = measurement)) + 
+  geom_boxplot() + 
+  facet_wrap(~ feature_name, 
+             labeller = as_labeller(c("radius_mean"="Radius Mean", 
+                                      "texture_mean" = "Texture Mean"))) + 
+  xlab("") + ylab("")
+```
+
+Instead of making side-by-side boxplots, we can visualize the outcome and predictors in a single plot by making good use of color. This scatterplot graphs `texture_mean` against `radius_mean` and colors the points according to the outcome labels. The two different classes form distinct, but not totally separable groups of points. Some observations look like they might be difficult to classify. 
+
+```{r}
+train_set %>% 
+  ggplot(aes(x = radius_mean, y = texture_mean, color = labels)) + 
+  geom_point() + 
+  scale_color_discrete(name = "Mass") + 
+  xlab("Radius Mean") + ylab("Texture Mean")
+```
+
+
+2. Using the `glm` function, fit a logistic regression model to the training set that predicts `y` based on `radius_mean` and `texture_mean`. Don't forget to set `family = "binomial"`. Then, use the `predict` function to get probability estimates for the test set, and convert the probabilities to predicted response labels (use a cutoff of 0.5). 
+
+   Obtain the accuracy, confusion matrix, and other relevant diagnostic statistics for the test set. Explain what the confusion matrix and the sensitivity/specificity are telling you about the types of errors that your model is making. 
+
+**Solution:** 
+
+Setting `positive = "Malignant"` tells `confusionMatrix` to treat "Malignant" as the positive class (by default, it uses the first factor level). Looking at the raw counts, there are more false negatives than false positives (24 vs 11) in the test set. Likewise, the lower sensitivity (0.7336) tells us that the model is having a harder time correctly classifying the malignant observations, compared to the noticeably higher specificity (0.9382). This might be concerning if our primarily objective is accurately classifying people with malignant masses. To combat this problem, you could experiment with different cutoff thresholds, add more predictors, or use a different model altogether. 
+
+```{r}
+fit_logit = glm(y ~ radius_mean + texture_mean, 
+                   data = train_set, family = "binomial")
+
+p_hat_logit = predict(fit_logit, newdata = test_set, type = "response")
+y_hat_logit = factor(ifelse(p_hat_logit > 0.5, "Malignant", "Benign"))
+
+confusionMatrix(data = y_hat_logit, 
+                reference = test_set$labels, 
+                positive = "Malignant")
+```
+
+
+3. Build a Naive Bayes classifier for this dataset by hand. Recall that the decision rule can be expressed as
+
+   $$
+   p(x) = \mbox{Pr}(Y=1|X=x) = \frac{f_{X|Y=1}(x) \mbox{Pr}(Y=1)}
+{ f_{X|Y=0}(x)\mbox{Pr}(Y=0) + f_{X|Y=1}(x)\mbox{Pr}(Y=1)}.
+   $$
+
+   If we assume conditional independence, then 
+
+   $$
+   f_{X|Y=1}(x) = f_{X_1|Y=1}(x_1) f_{X_2|Y=1}(x_2) 
+   $$
+
+   and 
+
+   $$
+   f_{X|Y=0}(x) = f_{X_1|Y=0}(x_1) f_{X_2|Y=0}(x_2), 
+   $$
+
+   where $X_1$ represents `radius_mean` and $X_2$ represents `texture_mean`. 
+
+   Breaking it down step by step: 
+
+   - Calculate the prior prevalence of malignant masses $\pi = \mbox{Pr}(Y=1)$ in the training set. 
+   - Calculate the likelihood parameters (the average and standard deviation) for `radius_mean` in the training set. Repeat for `texture_mean`. 
+   - Using the test set data, the parameters from the previous step, and the `dnorm` function, calculate the likelihoods $f_{X_1|Y=1}(x_1)$, $f_{X_2|Y=1}(x_2)$, $f_{X_1|Y=0}(x_1)$, and $f_{X_2|Y=0}(x_2)$. 
+   - Put it all together to calculate the decision rule. 
+   - Convert the probabilities from your decision rule to predicted response labels (use a cutoff of 0.5). 
+
+   When you are done, obtain the accuracy, confusion matrix, and other relevant diagnostic statistics for the test set. Compare the performance of your Naive Bayes model with the logistic regression model from Q2. 
+
+   Note: If you would like to check your work (or just for future reference), the `e1071` package implements Naive Bayes as the `naiveBayes` function. 
+
+**Solution:** 
+
+First, we can calculate the prevalence of malignant masses in the training set. 
+
+```{r}
+pi = mean(train_set$y)
+```
+
+Then, we can obtain the parameters for `radius_mean` and `texture_mean`. 
+
+```{r}
+params_radius = train_set %>% 
+  group_by(labels) %>% 
+  summarize(avg = mean(radius_mean), 
+            sd = sd(radius_mean))
+
+params_texture = train_set %>% 
+  group_by(labels) %>% 
+  summarize(avg = mean(texture_mean), 
+            sd = sd(texture_mean))
+```
+
+Using the `dnorm` density function and the parameters, we can get the likelihoods for each of the test set observations. 
+
+```{r}
+f = test_set %>% 
+  mutate(f0_radius = dnorm(radius_mean, 
+                           params_radius$avg[1], params_radius$sd[1]), 
+         f1_radius = dnorm(radius_mean, 
+                           params_radius$avg[2], params_radius$sd[2]), 
+         f0_texture = dnorm(texture_mean, 
+                           params_texture$avg[1], params_texture$sd[1]), 
+         f1_texture = dnorm(texture_mean, 
+                           params_texture$avg[2], params_texture$sd[2]))
+```
+
+The decision rule follows by plugging the prior and likelihood into the given formula. 
+
+```{r}
+p_hat_bayes = f %>%
+  mutate(p_hat_bayes = 
+           f1_radius*f1_texture*pi / (f1_radius*f1_texture*pi + 
+                                  f0_radius*f0_texture*(1-pi))) %>%
+  .$p_hat_bayes
+```
+
+The Naive Bayes model (accuracy 0.8697) performs similarly to the logistic regression model (accuracy 0.8768). It is interesting (but probably not significant) to note that Naive Bayes has a slightly worse sensitivity at this cutoff, and a slightly better specificity. 
+
+```{r}
+y_hat_bayes = factor(ifelse(p_hat_bayes > 0.5, "Malignant", "Benign"))
+
+confusionMatrix(data = y_hat_bayes, 
+                reference = test_set$labels, 
+                positive = "Malignant")
+```
+
+The predicted probabilities from the two models also line up closely with each other. 
+
+```{r}
+qplot(p_hat_logit, p_hat_bayes) + geom_abline()
+```
+
+
+4. Make a scatterplot of `radius_mean` vs. `texture_mean` in the test dataset. Color the points that both models classify as "Benign" in one color, the points that both models classify as "Malignant" in a second color, and the points where the models disagree in a third color. Based on this visualization, does it make sense that these observations are the ones that the two classifiers did not agree on? Do these observations tend to belong to a particular outcome class? 
+
+**Solution:** 
+
+The `case_when` function in the `dplyr` package makes it easy to create a vector with multiple cases. This is much cleaner than having a bunch of nested `ifelse` statements. 
+
+```{r}
+concordance_labels = case_when(
+  y_hat_logit == "Benign" & y_hat_bayes == "Benign" ~ "Both Benign", 
+  y_hat_logit == "Malignant" & y_hat_bayes == "Malignant" ~ "Both Malignant", 
+  TRUE ~ "Disagree"
+)
+```
+
+Looking at the scatterplot, it is apparent that the observations where the two models disagree fall more-or-less directly on the decision boundary. This is exactly where you would expect there to be uncertainty and less robustness. It doesn't really seem that these observations correspond to higher/lower values of the predictors. 
+
+```{r}
+test_set %>% ggplot(aes(radius_mean, texture_mean, 
+                        color = concordance_labels)) +
+  geom_point() + 
+  scale_color_discrete(name = "Predicted Labels") + 
+  xlab("Radius Mean") + ylab("Texture Mean")
+```
+
+There are ten observations that Naive Bayes classified differently than logistic regression, and they are split evenly between the Benign and Malignant true outcomes. However, the lower prevalence of malignant masses means that we would expect 3-4 mismatched Malignant outcomes and 6-7 Benign outcomes rather than five each. The smaller sample size makes it difficult to draw strong conclusions, but there isn't any particularly convincing evidence that either outcome is more likely to be classified differently by the two models. 
+
+```{r}
+test_set %>% filter(concordance_labels == "Disagree")
+```
