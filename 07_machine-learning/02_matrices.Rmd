@@ -142,6 +142,7 @@ We can convert a vector into a matrix with the `matrix` function and by specifyi
 
 ```{r}
 my_vector <- 1:15
+my_vector
 mat <- matrix(my_vector, 5, 3)
 mat
 ```
@@ -149,7 +150,7 @@ mat
 We can fill by row by using the `byrow` argument.
 
 ```{r}
-mat_t <- matrix(my_vector, 3, 5, byrow = TRUE)
+mat_t <- matrix(my_vector, 5, 3, byrow = TRUE)
 mat_t
 ```
 
@@ -157,6 +158,7 @@ When we turn the columns into rows we refer to these operations as _transposing_
 
 ```{r}
 identical(t(mat), mat_t)
+t(mat_t)
 ```
 
 
