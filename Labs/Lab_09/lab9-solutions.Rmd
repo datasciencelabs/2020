@@ -1,0 +1,632 @@
+---
+title: 'Lab 9: Machine Learning II'
+output:
+  html_document:
+    toc: true
+---
+
+This lab is split into three sections, each of which covers a different set of machine learning topics and operates independently of the other two parts. For convenience, each section loads all of the R packages needed to run the code in that section. This results in some packages being re-loaded if you knit the Rmarkdown file or run all of the chunks, which is generally not a good practice. 
+
+Before we begin, make sure that all of the following packages are installed on your computer: 
+
+- `caret` 
+- `dslabs` 
+- `GGally` 
+- `MASS` 
+- `mvtnorm` 
+- `pROC` 
+- `randomForest` 
+- `tidyverse` 
+- `tree`
+
+
+# 1. kNN, LDA, and QDA for Binary Classification
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(mvtnorm)
+library(caret)
+library(MASS)
+library(pROC)
+```
+
+In this section, we simulate a dataset that has 200 observations from Class 0 and 200 observations from Class 1. The class labels are stored in the variable Y. There are also two predictor variables, X1 and X2. When an observation is from Class 0, X1 and X2 are drawn from a bivariate normal distribution with mean $\mu_0 = \left( \begin{array}{c} 3 \\ 2 \end{array} \right)$ and covariance matrix $\Sigma = \left( \begin{array}{cc} 1 & 0.5 \\ 0.5 & 1 \end{array} \right)$. When an observation is from Class 1, X1 and X2 are drawn from a bivariate normal distribution with mean $\mu_1 = \left( \begin{array}{c} 4 \\ 4 \end{array} \right)$ and the same covariance matrix $\Sigma = \left( \begin{array}{cc} 1 & 0.5 \\ 0.5 & 1 \end{array} \right)$. 
+
+In slightly less technical terms, this means that when an observation is from Class 0, X1 is normally distributed with mean 3 and standard deviation 1; X2 is normally distributed with mean 2 and standard deviation 1; and the two predictors have a moderately positive correlation. When an observation is from Class 1, X1 and X2 are still normally distributed with the same correlation structure as in Class 0, but their means are 4 instead. 
+
+```{r}
+# Means for two classes
+mu0 = c(3, 2)
+mu1 = c(4, 4)
+# Shared covariance matrix.
+Sigma = matrix(c(1, 0.5, 0.5, 1), nrow = 2)
+
+# Simulate 200 observations from each class and create vector of labels
+set.seed(1)
+sim_dat = data.frame(Y = factor(rep(c(0, 1), each = 200)), 
+                     rbind(mvrnorm(200, mu0, Sigma), 
+                           mvrnorm(200, mu1, Sigma)))
+
+# Take a peek at the simulated data
+head(sim_dat)
+```
+
+
+1.1. Use the `createDataPartition` function from the `caret` package to split the data into training and test sets (50% training and 50% test). Be sure to set a random seed so that your code is reproducible (the solutions use `set.seed(4)`). Visualize the training observations by making a scatterplot of X2 against X1 and coloring the points by Y. Comment on what you see. 
+
+**Solution:** 
+
+We split the data so that half of it is designated for training and the other half is set aside for testing. 
+
+```{r}
+set.seed(4)
+sim_index_train = createDataPartition(y = sim_dat$Y, 
+                                  times = 1, p = 0.5, list = FALSE)
+sim_train_set = slice(sim_dat, sim_index_train)
+sim_test_set = slice(sim_dat, -sim_index_train)
+```
+
+In coloring the points by Y, we can see that the two classes form somewhat distinct groups in the scatterplot. However, there is still some overlap between the two classes. 
+
+```{r}
+ggplot() +
+  geom_point(aes(x = X1, y = X2, color = Y), data = sim_train_set) + 
+  scale_shape_manual(values = c(16, 3))
+```
+
+
+1.2. Use the k-Nearest Neighbors (kNN) algorithm with k=1 neighbors to model Y based on X1 and X2 in the training data. You can use the `knn3` function from the `caret` package. Save the output from `knn3` as `fit_knn1`. Then, run kNN with k=15 neighbors and save your model as `fit_knn15`. For each model, obtain the predicted probabilities of belonging in Class 1 for the observations in the test set. 
+
+**Solution:** 
+
+First, we fit kNN models with k=1 and k=15 neighbors, specified using the `k` parameter in the `knn3` function. 
+
+```{r}
+fit_knn1 = knn3(Y ~ X1 + X2, data = sim_train_set, k = 1)
+fit_knn15 = knn3(Y ~ X1 + X2, data = sim_train_set, k = 15)
+```
+
+Then, we can use the fitted models to predict on the test set. By default, the `predict` function for `knn3` models returns predicted probabilities, but you can also explicitly specify `type = "prob"`. The `predict` function returns a matrix with two columns (one set of probabilities for each class), and since we only want the probabilities for belonging in Class 1, we'll just keep the second column. 
+
+```{r}
+probs_knn1 = predict(fit_knn1, newdata = sim_test_set)[,2]
+probs_knn15 = predict(fit_knn15, newdata = sim_test_set)[,2]
+```
+
+
+1.3. Use the `lda` and `qda` functions from the `MASS` package to fit linear discriminant analysis (LDA) and quadratic discriminant analysis (QDA) models to the training data. Save your models as `fit_lda` and `fit_qda`, respectively. Both X1 and X2 should be included as predictors. For each model, obtain the predicted probabilities of belonging in Class 1 for the observations in the test set. 
+
+**Solution:** 
+
+We can fit LDA and QDA models using the `lda` and `qda` functions from the `MASS` package. 
+
+```{r}
+fit_lda = lda(Y ~ X1 + X2, data = sim_train_set)
+fit_qda = qda(Y ~ X1 + X2, data = sim_train_set)
+```
+
+The `predict` function for `lda` and `qda` returns a list with several components, but we can extract the predicted probabilities from the `posterior` slot. As before, we subset the resulting two-column matrix to only keep the probabilities for belonging in Class 1. 
+
+```{r}
+probs_lda = predict(fit_lda, newdata = sim_test_set)$posterior[,2]
+probs_qda = predict(fit_qda, newdata = sim_test_set)$posterior[,2]
+```
+
+
+1.4. Using the `pROC` package and the predicted probabilities from the four models that you fit in Q1.2-3, plot and interpret the receiver operating characteristic (ROC) curves based on the test set. Also, report the area under the curve (AUC) for each of the four models. 
+
+**Solution:** 
+
+Plotting ROC curves using the `pROC` package first requires creating "roc" objects by running the `roc` function. We can do this by passing in the true class labels from the test set and the predicted probabilities calculated from each of the four models. 
+
+```{r}
+roc_knn1 = roc(sim_test_set$Y, probs_knn1)
+roc_knn15 = roc(sim_test_set$Y, probs_knn15)
+roc_lda = roc(sim_test_set$Y, probs_lda)
+roc_qda = roc(sim_test_set$Y, probs_qda)
+```
+
+In order to overlay the ROC curves on the same plot, we specify `add = TRUE` and different colors to the `plot` function. The curves for LDA, QDA, and kNN with k=15 all hug the upper-left corner closely, so these models are doing a good job of discriminating between the two classes in the test set. kNN with k=1 appears to be doing noticeably worse. 
+
+```{r}
+plot(roc_knn1)
+plot(roc_knn15, add = TRUE, col = 2)
+plot(roc_lda, add = TRUE, col = 3)
+plot(roc_qda, add = TRUE, col = 4)
+legend("bottomright", 
+       legend = c("kNN (k=1)", "kNN (k=15)", "LDA", "QDA"), 
+       col = 1:4, lty = 1, lwd = 2)
+```
+
+We can calculate the AUC for each of the four models using the `auc` function. The inputs are the same as they were for `roc`. 
+
+```{r}
+auc(sim_test_set$Y, probs_knn1)
+auc(sim_test_set$Y, probs_knn15)
+auc(sim_test_set$Y, probs_lda)
+auc(sim_test_set$Y, probs_qda)
+```
+
+Alternatively, because we already ran `roc` for each of the four models, we can extract the AUC information directly from our saved "roc" objects. 
+
+```{r}
+roc_knn1$auc
+roc_knn15$auc
+roc_lda$auc
+roc_qda$auc
+```
+
+LDA and QDA have nearly identical AUCs of about 0.921, and are followed closely behind by kNN with k=15 (AUC of 0.911). A model that is classifying perfectly has an AUC of 1 and a model that is randomly guessing has an AUC of around 0.5, so these three models are doing quite well. kNN with k=1 is having a harder time discriminating between classes, as evidenced by both the shape of the ROC curve and its lower AUC of 0.770. 
+
+Advanced: If you were annoyed by how repetitive it was to get the ROC curves and AUCs for the four models, here's a slightly cleaner approach that takes advantage of apply functions. 
+
+```{r}
+# Put all of the predicted probabilities together in a single data frame
+probs_all_df = data.frame(knn1 = probs_knn1, 
+                          knn15 = probs_knn15, 
+                          lda = probs_lda, 
+                          qda = probs_qda)
+
+# Create the "roc" object for each of the four models
+roc_all = lapply(probs_all_df, function(probs){
+  roc(sim_test_set$Y, probs)
+})
+
+# Plot the ROC curve for the first model
+plot(roc_all[[1]])
+# Plot the ROC curves for the subsequent models
+invisible(sapply(2:4, function(i){
+  plot(roc_all[[i]], add = TRUE, col = i)
+}))
+# Legend
+legend("bottomright", 
+       legend = c("kNN (k=1)", "kNN (k=15)", "LDA", "QDA"), 
+       col = 1:4, lty = 1, lwd = 2)
+
+# Calculate the AUC for each of the four models
+sapply(probs_all_df, function(probs){
+  auc(sim_test_set$Y, probs)
+})
+# Alternatively, extract the AUCs saved in the ROC curve objects
+sapply(roc_all, function(obj){
+  obj$auc
+})
+```
+
+
+1.5. The code below plots the test set data, as well as decision boundaries calculated from the `fit_knn`, `fit_knn15`, `fit_lda`, and `fit_qda` models that you built in Q1.2-3. To run, remove the `eval = FALSE` option from the code chunk header. Discuss how the assumptions of the models and the data-generating process are reflected in the shapes of the decision boundaries. 
+
+```{r}
+# Create a grid of X1 and X2 values that span the space of the test set
+grid = expand.grid(seq(min(sim_test_set$X1), 
+                       max(sim_test_set$X1), length=200), 
+                   seq(min(sim_test_set$X2), 
+                       max(sim_test_set$X2), length=200))
+colnames(grid) = c("X1", "X2")
+
+# Predict class labels on all values in the grid for each model
+boundary_df = data.frame(
+  grid, 
+  knn1 = predict(fit_knn1, newdata = grid, type="class"), 
+  knn15 = predict(fit_knn15, newdata = grid, type="class"), 
+  lda = predict(fit_lda, newdata = grid)$class, 
+  qda = predict(fit_qda, newdata = grid)$class)
+
+# Scatterplot of test set observations
+# Overlay contour plot to draw decision boundaries
+boundary_df %>% gather(model, pred, c(knn1, knn15, lda, qda)) %>%
+  ggplot() + 
+  geom_point(aes(x = X1, y = X2, shape = Y), data = sim_test_set) + 
+  stat_contour(aes(x = X1, y = X2, z = as.numeric(pred), color = model), 
+               lwd = 1, breaks=c(1, 2, 3)) + 
+  scale_shape_manual(values = c(16, 3)) +
+  scale_color_discrete(name = "Model", 
+                       labels = c("kNN (k=1)", "kNN (k=15)", "LDA", "QDA"))
+```
+
+**Solution:** 
+
+The LDA decision boundary is a line and the QDA boundary is a quadratic curve, which is exactly what we would expect from these models. The kNN boundaries are allowed to be more flexible in shape. In particular, when k=1, kNN fits a very wiggly decision boundary with many islands (the nonsensical little circles), which indicates overfitting to training set. When k=15, the kNN boundary is smoother. 
+
+Because we simulated the data, we know that the data was generated under the same assumptions as the LDA classifier. That is, the predictors X1 and X2 are multivariate normal with the same correlation structure for both classes. So it is no surprise that none of the more complicated models were able to outperform LDA in the test set, and that all of the boundaries look kind of linear. 
+
+
+# 2. Regression and Decision Trees for Continuous Outcomes
+
+In this part of the lab, we will predict infant birth weight using the `birthwt` dataset, available in the `MASS` package. This dataset of 189 observations was  collected at the Baystate Medical Center in Springfield, MA during 1986. It includes the following variables: 
+
+- `low`: indicator of birth weight less than 2.5 kg (0 = more than 2.5 kg, 1 = less than 2.5 kg).
+- `age`: mother's age in years.
+- `lwt`: mother's weight in pounds at last menstrual period.
+- `race`: mother's race (1 = white, 2 = black, 3 = other).
+- `smoke`: smoking status during pregnancy (0 = nonsmoker, 1 = smoker).
+- `ptl`: number of previous premature labors.
+- `ht`: history of hypertension (0 = no history, 1 = history of hypertension).
+- `ui`: presence of uterine irritability (0 = no presence, 1 = presence of uterine irritability).
+- `ftv`: number of physician visits during the first trimester.
+- `bwt`: birth weight in grams.
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(caret)
+library(tree)
+
+library(MASS)
+data(birthwt)
+```
+
+Since we are interested in predicting birth weight, we drop the `low` indicator from the dataset. We also convert `race`, `smoke`, `ht`, and `ui` to factors, because these variables are categorical and not numeric/continuous. 
+
+Comment: Both the `dplyr` and `MASS` packages export a function called `select`, which is why the `dplyr::` is necessary in `dplyr::select`. This makes it clear to R that we want to use the `select` function from `dplyr`. 
+
+```{r}
+birthwt = birthwt %>% dplyr::select(-low) %>%
+  mutate(race = factor(race), 
+         smoke = factor(smoke), 
+         ht = factor(ht), 
+         ui = factor(ui))
+```
+
+We use `createDataPartition` to split the birth weight data into equally-sized training and test sets. 
+
+```{r}
+set.seed(9)
+birthwt_index_train = createDataPartition(y = birthwt$bwt, 
+                                  times = 1, p = 0.5, list = FALSE)
+birthwt_train_set = slice(birthwt, birthwt_index_train)
+birthwt_test_set = slice(birthwt, -birthwt_index_train)
+```
+
+
+2.1. Based on the training set, make some plots to help you assess the relationship between our outcome of interest, `bwt`, and each of the other eight variables in the dataset. Which variables seem like good predictors of birth weight? 
+
+**Solution:** 
+
+For the continuous predictors (`age`, `lwt`, `ptl`, and `ftv`), we can make scatterplots to assess their relationships with infant birth weight.
+
+```{r}
+birthwt_train_set %>% 
+  gather(predictor, value, c(age, lwt, ptl, ftv)) %>% 
+  ggplot(aes(x = value, y = bwt)) + 
+  geom_point() + 
+  facet_wrap(~ predictor, scales = 'free_x', 
+             labeller = 
+               as_labeller(c("age"="Mother's Age (years)", 
+                             "lwt" = "Mother's Weight (lbs)", 
+                             "ptl" = "Number of Premature Labors", 
+                             "ftv" = "Number of 1st Trimester Visits"))) + 
+  xlab(NULL) + ylab("Birth Weight (g)")
+```
+
+For the categorical predictors (`race`, `smoke`, `ht`, and `ui`), we can make boxplots. `ptl` (number of premature labors) and `ftv` (number of first trimester visits) are ordinal but not continuous, so they can also be visualized here as categorical predictors. You could potentially convert them to factors and have the models in Q2.2-2.4 treat them as categorical predictors, but we won't overcomplicate things by doing that. 
+
+Comment: The warning message "attributes are not identical across measure variables; they will be dropped " comes from gathering the predictor variables, which are factors that have different levels. It can be safely ignored in this case. 
+
+```{r}
+birthwt_train_set %>% 
+  gather(predictor, value, c(race, smoke, ht, ui, ptl, ftv))  %>% 
+  ggplot(aes(x = value, y = bwt)) + 
+  geom_boxplot() + 
+  facet_wrap(~ predictor, scales = 'free_x', 
+             labeller = 
+               as_labeller(c("race"="Race", 
+                             "smoke" = "Smoking Status", 
+                             "ht" = "Hypertension", 
+                             "ui" = "Uterine Irritability", 
+                             "ptl" = "Number of Premature Labors", 
+                             "ftv" = "Number of 1st Trimester Visits"))) + 
+  xlab(NULL) + ylab("Birth Weight (g)")
+```
+
+It appears mothers who smoked during pregancy or experienced uterine irritability may be more likely have babies with low birth weights. A few of the other predictors look like the may be associated with birth weight too, like mother's weight and race, but it's hard to really say.  
+
+
+2.2. Fit a linear regression model with `lm` that predicts `bwt` using all of the other variables in the training data. Print out the summary information and identify variables with significant coefficients. 
+
+**Solution:** 
+
+The coefficients for `race3` (Other vs. White), `smoke1` (smoking vs. nonsmoking), and `ui1` (uterine irritability vs. not) are significant at a 0.05 threshold. This is consistent with what we observed in the EDA from Q2.1. However, the linear model may not be doing a good job of capturing more complex, non-linear associations. 
+
+```{r}
+fit_lm = lm(bwt ~ . , data = birthwt_train_set)
+summary(fit_lm)
+```
+
+
+2.3. Fit a regression tree that predicts `bwt` using all of the other variables in the training data. You can use the `tree` function from the `tree` package. Make a plot that visualizes the tree, and compare the variables used to construct the tree with the variables that were significant in the linear model from Q2.2. 
+
+**Solution:** 
+
+The code for fitting a decision tree with `tree` follows a very similar syntax as the code for fitting a linear model with `lm`. When visualizing the tree, `pretty = 0` forces the text labels to use the factor level names stored in the categorical variables, instead of `a, b, ..., z`.
+
+```{r}
+fit_regtree = tree(bwt ~ ., data = birthwt_train_set)
+
+plot(fit_regtree)
+text(fit_regtree, pretty = 0)
+```
+
+The regression tree was constructed using `ui`, `race`, `lwt`, `smoke`, `age`, and `ftv`. This includes all three of the variables that we identified as being significant in the linear model, plus a few others. 
+
+```{r}
+summary(fit_regtree)
+```
+
+
+2.4. Use the `cv.tree` function to determine a reasonable tree size. Be sure to set a random seed so that your code is reproducible (the solutions use `set.seed(16)`). Prune your tree from Q2.3 to have this "best" size, using the `best` argument in the `prune.tree` function. Visualize the pruned tree and compare the variables used to construct it with the variables used to construct the tree from Q2.3. 
+
+**Solution:** 
+
+The cross-validation deviance appears to be minimized when the tree has 6 terminal nodes. This is about half as many terminal nodes as there were in the original tree. Different random seeds can lead to different plots and conclusions. 
+
+```{r}
+set.seed(16)
+cv_regtree = cv.tree(fit_regtree)
+plot(cv_regtree$size, cv_regtree$dev, type = 'b', 
+     xlab="Number of Terminal Nodes", ylab="Deviance")
+```
+
+If we prune the tree from Q2.2 to have a size of 6, `ftv` is no longer used in construction, and the tree is a bit simpler. 
+
+```{r}
+fit_regtree_prune = prune.tree(fit_regtree, best = 6)
+
+plot(fit_regtree_prune)
+text(fit_regtree_prune, pretty = 0)
+
+summary(fit_regtree_prune)
+```
+
+
+2.5. For each of the three models from Q2.2-4, calculate birth weight predictions for the observations in the test set. Compare model performance in terms of the test mean-squared error (MSE). 
+
+**Solution:** 
+
+You can get predictions for each these three models with a straightforward application of the `predict` function. The linear regression model has a test MSE of 408096.8. 
+
+```{r}
+preds_lm = predict(fit_lm, newdata = birthwt_test_set)
+mean((preds_lm - birthwt_test_set$bwt)^2)
+```
+
+The unpruned regression tree has a test MSE of 446478.5, which is higher than that of linear regression. 
+
+```{r}
+preds_regtree = predict(fit_regtree, newdata = birthwt_test_set)
+mean((preds_regtree - birthwt_test_set$bwt)^2)
+```
+
+Pruning the regression tree to have 6 terminal nodes results in a test MSE of 402471.2, which is an improvement over the unpruned tree's test MSE and slightly better than the linear regression test MSE. 
+
+```{r}
+preds_regtree_prune = predict(fit_regtree_prune, newdata = birthwt_test_set)
+mean((preds_regtree_prune - birthwt_test_set$bwt)^2)
+```
+
+Advanced: As with Q1.4, you can use apply functions to cut down on the redundant code. 
+
+```{r}
+sapply(list("Linear regression" = fit_lm, 
+            "Regression tree" = fit_regtree, 
+            "Pruned regression tree" = fit_regtree_prune), 
+       function(mod) {
+         pred = predict(mod, newdata = birthwt_test_set)
+         mean((pred - birthwt_test_set$bwt)^2)
+})
+```
+
+
+# 3. Decision Trees, Bagging, and Random Forests for Multi-Class Outcomes
+
+In the final section of this lab, we will use gene expression data to classify tissue samples. The data can be loaded from the `dslabs` package by calling `data(tissue_gene_expression)`. `tissuesGeneExpression` is a list with two elements: 
+
+- `x`: Numeric matrix with 189 rows and 500 columns. Each column contains gene expression measurements for a different gene. 
+- `y`: Factor vector of length 189 that records tissue type labels (cerebellum, colon, endometrium, hippocampus, kidney, liver, or placenta) . 
+
+The original data (accessible in the `tissuesGeneExpression` package) records gene expression for 22,215 genes. 
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(caret)
+library(GGally)
+library(tree)
+library(randomForest)
+
+library(dslabs)
+data(tissue_gene_expression)
+```
+
+We will only use a random sample of 100 genes to predict tissue type. 
+
+```{r}
+set.seed(25)
+tiss_ge = data.frame(y = tissue_gene_expression$y, 
+                     tissue_gene_expression$x[,sample(500, 100)])
+```
+
+As usual, we split the data into training and test sets, each with about 50% of the data. 
+
+```{r}
+set.seed(36)
+tiss_ge_index_train = createDataPartition(y = tiss_ge$y, 
+                                  times = 1, p = 0.5, list = FALSE)
+tiss_ge_train_set = slice(tiss_ge, tiss_ge_index_train)
+tiss_ge_test_set = slice(tiss_ge, -tiss_ge_index_train)
+```
+
+
+3.1. Below, you will find some plots and tables of the training set designed to help you develop some intuition for the data. Describe what you see. 
+
+This is a frequency table for the tissue types in the training data. 
+
+```{r}
+table(tiss_ge_train_set$y)
+```
+
+It is difficult to make visualizations for all 100 genes in the dataset, so let's randomly sample six to focus on. 
+
+```{r}
+set.seed(49)
+genes6 = sample(names(tiss_ge)[-1], 6)
+genes6
+```
+
+Here are histograms of the gene expression distributions of the six genes.  
+
+```{r}
+tiss_ge_train_set %>% 
+  gather(gene, expression, all_of(genes6))  %>% 
+  ggplot(aes(x = expression)) + 
+  geom_histogram() + 
+  facet_wrap(~ gene) + 
+  xlab(NULL) + ylab(NULL)
+```
+
+The boxplots below plot gene expression against tissue type for the six genes. Note that setting `scales = 'free_y'` allows the y-axis to vary from plot to plot, so they are not on the same scale. 
+
+```{r}
+tiss_ge_train_set %>% 
+  gather(gene, expression, all_of(genes6))  %>% 
+  ggplot(aes(x = y, y = expression)) + 
+  geom_boxplot() + 
+  facet_wrap(~ gene, scales = 'free_y') + 
+  xlab(NULL) + ylab(NULL) + 
+  scale_x_discrete(labels = str_to_title(unique(tiss_ge_train_set$y))) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+The `ggcorr` function from the `GGally` package makes pretty correlation matrix plots. Each tiny square in this plot represents the correlation between a pair of genes (out of the entire set of 100 genes). Red indicates positive correlation (close to 1), blue indicates negative correlation (close to -1), and white indicates no correlation (close to 0). 
+
+```{r}
+ggcorr(tiss_ge_train_set[,-1], hjust = 1, size = 1.5, layout.exp = 10)
+```
+
+**Solution:** 
+
+- From the frequency table, we can see that there is a non-uniform distribution of tissue types. Some tissues, like cerebellum and kidney, are much better represented in the data than others, like endometrium and placenta. 
+
+- The histograms show that the gene expression measurements of the six randomly sampled genes have different distributions. Some are roughly symmetric, while others are skewed. COPB1 is highly expressed in most of the tissues, while RPE65 tends to be lowly expressed. 
+
+- The boxplots suggest that individual genes are often expressed at different levels for different tissues. However, it doesn't really seem like any one of these six genes does a great job of distinguishing between all seven of the tissue types. 
+
+- The correlation matrix plot (lots of red and blue squares) illustrates that many of the genes in this dataset are highly correlated with each other. So, we might not need all of the predictors to do a good job of classifying the tissues. 
+
+
+3.2. Using the `tree` function from the `tree` package and all of the training set gene expression data, build a decision tree to classify the tissue types. Get the predicted class labels for the test set data, report the test accuracy, and comment on the test confusion matrix. 
+
+**Solution:** 
+
+The code for fitting a classification tree follows the same syntax as fitting a regression tree in Q2.3. Because `y` is a factor variable, the `tree` function knows that it should build a classification tree. 
+
+```{r}
+fit_classtree = tree(y ~ . , data = tiss_ge_train_set)
+```
+
+To get predicted class labels and not the predicted probabilities, be sure to specify `type = "class"` in the `predict` function. 
+
+```{r}
+preds_fit_classtree = predict(fit_classtree, newdata = tiss_ge_test_set, 
+                              type = "class")
+```
+
+The decision tree's test set accuracy as reported by `confusionMatrix` is 0.914, which is quite good. From the confusion matrix, we can see that our model classifies the cerebellum, colon, and hippocampus tissues in the test set perfectly, but makes a some mistakes when it comes to endometrium, kidney, liver, and placenta.  
+
+```{r}
+confusionMatrix(preds_fit_classtree, tiss_ge_test_set$y)
+```
+
+
+3.3. Fit a bagging (bootstrap aggregation) model to the training data by running `randomForest` from the `randomForest` package with the `mtry` parameter set to the number of predictors (`mtry = 100`). Be sure to set a random seed so that your code is reproducible (the solutions use `set.seed(64)`). Get the predicted class labels for the test set data and report the test accuracy. 
+
+**Solution:** 
+
+Setting `mtry = 100` when we have 100 predictors is what makes this model a bagging model. 
+
+```{r}
+set.seed(64)
+fit_bag = randomForest(y ~ ., data = tiss_ge_train_set, mtry = 100)
+```
+
+By default, the `predict` function for `randomForest` models returns predicted class labels, but you can also explicitly specify `type = "response"`. 
+
+```{r}
+preds_fit_bag = predict(fit_bag, newdata = tiss_ge_test_set)
+```
+
+You can use the `confusionMatrix` function to calculate diagnostic metrics for the test set predictions and pull out the accuracy from the `overall` slot. 
+
+```{r}
+confusionMatrix(preds_fit_bag, tiss_ge_test_set$y)$overall[1]
+```
+
+Alternatively, you can use the predicted and true test labels to calculate the accuracy by hand. 
+
+```{r}
+mean(preds_fit_bag == tiss_ge_test_set$y)
+```
+
+Either way, the test accuracy is 0.989, which is better than the test accuracy we got from the single classification tree. 
+
+
+3.4. Now, build a random forest model with the `mtry` parameter set to the square root of the number of predictors. Also, set `importance = TRUE` so that the importance of the predictors is assessed. You will need the variable importance information for Q3.5. Be sure to set a random seed so that your code is reproducible (the solutions use `set.seed(81)`). Get the predicted class labels for the test set data and report the test accuracy. 
+
+**Solution:** 
+
+For classification problems, the default value for `mtry` is the square root of the number of predictors, but we can explicitly specify `mtry = 10`.  
+
+```{r}
+set.seed(81)
+fit_rf = randomForest(y ~ ., data = tiss_ge_train_set, 
+                      mtry = 10, importance = TRUE)
+```
+
+As in Q3.3, you can calculate the accuracy directly or by using the `confusionMatrix` function. Here, the test accuracy is 1, meaning that all of the test set observations were classified perfectly by the model. We know from Q3.1 that the genes are highly correlated with each other. Random forests are known to decorrelate predictors, which explains the improvement over bagging. 
+
+```{r}
+preds_fit_rf = predict(fit_rf, newdata = tiss_ge_test_set)
+
+confusionMatrix(preds_fit_rf, tiss_ge_test_set$y)$overall[1]
+mean(preds_fit_rf == tiss_ge_test_set$y)
+```
+
+
+3.5. Run the `importance` function on your random forest model from Q3.4 to extract variable importance measures for each of the tissue types. Find the five most important genes for classifying kidney tissues by ordering the Gini index measures. Compare these five genes with the genes that were used to construct the classification tree in Q3.2.
+
+Optional: Extract the five most important genes for each of the seven tissues, and compare these results with the genes that were used to construct the classification tree in Q3.2.
+
+**Solution:** 
+
+The five most important genes for classifying kidney tissues are COLGALT2, GPA33, CES2, PRSS3P2, and CELSR2.  
+
+```{r}
+variable_importance = importance(fit_rf)
+
+variable_importance_kidney = 
+  data.frame(gene = rownames(variable_importance), 
+             Gini = variable_importance[,"kidney"])
+
+variable_importance_kidney %>% 
+  arrange(desc(Gini)) %>% head(5)
+```
+
+Six genes were used to construct the decision tree from Q3.2. Of these,  COLGALT2, GPA33, and CES2 overlap with the five most important variables for classifying kidney tissues in the random forest model. 
+
+```{r}
+summary(fit_classtree)
+```
+
+If we extract the top five genes for each of the seven tissues, we can see that all but one of the genes used to construct the classification tree are represented. The lone exception is UBOX5. There are some additional surprises; for example, CELSR2 is considered to be one of the most important genes for classifying five out of the seven tissues in random forest, but was not used by the decision tree. 
+
+```{r}
+variable_importance_long = 
+  data.frame(gene = rownames(variable_importance), 
+             variable_importance) %>% 
+  gather(tissue, Gini, unique(tiss_ge_train_set$y))
+
+variable_importance_long %>% 
+  group_by(tissue) %>%
+  slice_max(order_by = Gini, n = 5) %>% 
+  ungroup() %>% 
+  dplyr::select(gene) %>% 
+  table() 
+```
