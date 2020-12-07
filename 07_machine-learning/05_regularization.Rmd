@@ -18,7 +18,7 @@ The prediction error for any machine learning model can be decomposed into 3 com
 In mathematical terms:
 
 $$
-\mbox{E}[y_0 - \hat f(x_0)]^2 = Var(\hat f(x_0))^2 + [Bias(\hat f(x_0))]^2 + Var(\epsilon).
+\mbox{E}[y_0 - \hat f(x_0)]^2 = Var(\hat f(x_0)) + [Bias(\hat f(x_0))]^2 + Var(\epsilon).
 $$
 
 Irreducible error is a measure for the noise in our data and can't be reduced by a better model - no matter how good we make our model, our data will have a certain amount of noise or error that cannot be removed. We can, however, create a model with low bias and variance. These quantities are not independent, and decreasing one will increase the other - this is where the term "bias-variance tradeoff" comes from; we want to build a model with the least amount of bias and variance, keeping in mind that we need to find a balance point for these two values.
@@ -68,8 +68,11 @@ ratings <- read_csv(gzfile(filename))
 This dataset includes the following columns:
 
 `userId`: unique identifier given to individual rating the movie
+
 `movieId`: unique identifier given to the movie being rated
+
 `rating`: movie rating given by user ranging from 1 (low) to 5 (high)
+
 `timestamp`: unique identifier for time rating was submitted 
 
 Each row represents the rating of a particular movie by a particular user. 
@@ -99,7 +102,9 @@ ratings %>%
 Another dataset available to us is the `movies` dataset. Each row corresponds to a movie and the columns available are
 
 `movieID`: unique identifier given to the movie (identical to the movie Ids in the `ratings` dataset)
+
 `title`: movie title
+
 `genres`: genre(s) of the movie (ex: Romance, Comedy, Children, etc.)
 
 It will be helpful for analysis to create a new data frame containing information from both the `ratings` and `movies` datasets. We can think of this data frame as a very large matrix with users on the rows and movies on the columns. The `spread` function permits us to convert it to this format, but if we try it for the entire matrix it will crash R. Let's instead show the matrix for a few users. Note that the movie titles in the `movies` data frame contain the year the movie was released and we remove this extra information to save space and memory.
