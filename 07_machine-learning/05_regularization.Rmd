@@ -10,8 +10,44 @@ library(dslabs)
 ds_theme_set()
 ```
 
-# Regularization
+# Bias-Variance Tradeoff 
+The prediction error for any machine learning model can be decomposed into 3 components: **bias**, **variance**, and **irreducible error**. 
 
+>> Total error = Variance + Bias squared + Irreducible Error
+
+In mathematical terms:
+
+$$
+\mbox{E}[y_0 - \hat f(x_0)]^2 = Var(\hat f(x_0))^2 + [Bias(\hat f(x_0))]^2 + Var(\epsilon).
+$$
+
+Irreducible error is a measure for the noise in our data and can't be reduced by a better model - no matter how good we make our model, our data will have a certain amount of noise or error that cannot be removed. We can, however, create a model with low bias and variance. These quantities are not independent, and decreasing one will increase the other - this is where the term "bias-variance tradeoff" comes from; we want to build a model with the least amount of bias and variance, keeping in mind that we need to find a balance point for these two values.
+
+But what exactly are bias and variance?
+
+* `Bias`: the error that is introduced by approximating a real-life problem, which may be extremely complicated, by a much simpler model. For example, linear regression assumes that there is a linear relationship between $Y$ and $X_1, X_2,...,X_p$. It is unlikely that any real-life problem truly has such a simple linear relationship, and so performing linear regression will undoubtedly result in some bias in the estimate of $f$ (our machine learning model). In other words, building a model that is too simple for the task at hand will result in high bias, whereas a more flexible (complex) model will decrease bias. 
+
+* `Variance`: the amount by which $\hat f$ would change if we estimated it using a different training data set. Since the training data are used to fit the machine learning method, different training data sets will result in a different $\hat f$. But ideally the estimate for $f$ should not vary too much between training sets. However, if a method has high variance then small changes in the training data can result in large changes in $\hat f$. In
+general, more flexible statistical methods have higher variance.
+
+
+![](bias-var-graphs.png)
+
+
+<div style="text-align:center"><img src="bias-var-targets.png" width="500"/></div>
+
+As a general rule, as we use more flexible methods, the variance will increase and the bias will decrease. As
+we increase the flexibility of a class of methods, the bias tends to initially decrease faster than the variance increases. Consequently, the expected test set error declines. However, at some point increasing flexibility has little impact on the bias but starts to significantly increase the variance.
+
+Good test set performance of a statistical learning method requires low variance as well as low squared bias. This is referred to as a trade-off because it is easy to obtain a method with extremely low bias but high variance (for instance, by drawing a curve that passes through every single training observation) or a method with very low variance but high bias (by fitting a horizontal line to the data that does not follow a linear pattern). The challenge lies in finding a method for which both the variance and the squared bias are low.
+
+# Regularization
+In the regression setting, the standard linear model $Y = \beta_0 + \beta_1X_1 + ... + \beta_pX_p$ is commonly used to describe the relationship between a response $Y$ and a set of variables $X_1, X_2,...,X_p$. We typically fit this model using ordinary least squares (OLS).
+
+However, many machine learning datasets have many predictors ($X_i$s), some of which may not be predictive of the outcome and therefore contributing to increased variance. In this section we will explore common types of **regularization** techniques - shrinkage and dimension reduction - in an effort to increase model performance and interpretability, and decrease variance. For more details on the bias-variance trandoff and regularization methods, see chapters 2 and 6 in [Introduction to Statistical Learning](http://faculty.marshall.usc.edu/gareth-james/ISL/ISLR%20Seventh%20Printing.pdf). 
+
+
+## IMDB Movie Ratings
 Recommendation systems use rating data from many products and users to make recommendations for a specific user. Netflix uses a recommendation system to predict your ratings for a specific movie.
 
 On October 2006 Netflix offered a challenge to the data science community: improve our recommendation algorithm by 10% and win a million dollars. In September 2009 
@@ -20,16 +56,23 @@ and a more detailed explanation [here](http://www.netflixprize.com/assets/GrandP
 
 One of the statistical techniques they used to improve prediction was _regularization_. We cover this topic using a recommendation data example.
 
-## IMDB Ratings Data
+We start by loading a [large, compressed movie ratings dataset](https://github.com/datasciencelabs/data/blob/master/movielens-train.csv.gz) from IMDB into R. 
 
-We start by loading a [large data set which is compressed](https://github.com/datasciencelabs/data/blob/master/movielens-train.csv.gz) into R. 
-
-```{r}
+```{r, message=FALSE}
 filename <- tempfile()
 url <- "https://github.com/datasciencelabs/data/blob/master/movielens-train.csv.gz?raw=true"
 download.file(url, filename)
 ratings <- read_csv(gzfile(filename)) 
 ```
+
+This dataset includes the following columns:
+
+`userId`: unique identifier given to individual rating the movie
+`movieId`: unique identifier given to the movie being rated
+`rating`: movie rating given by user ranging from 1 (low) to 5 (high)
+`timestamp`: unique identifier for time rating was submitted 
+
+Each row represents the rating of a particular movie by a particular user. 
 
 We can see this table is in tidy format with millions of rows:
 
@@ -41,27 +84,31 @@ We can see the number of users that provided ratings and how many movies have ra
 
 ```{r}
 ratings %>% summarize(n_users  = n_distinct(userId),
-            n_movies = n_distinct(movieId))
+                      n_movies = n_distinct(movieId))
 ```
 
-We can also see the distribution of all ratings:
+We can also see the distribution of all ratings. Here we take a random sample of the ratings so we can easily and quickly plot the distribution. 
 
 ```{r}
 ratings %>% 
-  sample_n(10000) %>% # Take sample so can make plot
+  sample_n(10000) %>% # Take sample to easily make plot
   ggplot(aes(rating)) + 
   geom_bar(color="black")
 ```
 
-So we can think of these data as a very large matrix with users on the rows and movies on the columns. The `spread` function permits us to convert it to this format, but if we try it for the entire matrix it will crash R. Let's show the matrix for a few users.
-Note that the `movies` data frame has columns `movieID`, `title`, and `genre`, and the `ratings` data frame has columns `userID`, `movieID`, `rating`, and `timestamp`.
+Another dataset available to us is the `movies` dataset. Each row corresponds to a movie and the columns available are
 
+`movieID`: unique identifier given to the movie (identical to the movie Ids in the `ratings` dataset)
+`title`: movie title
+`genres`: genre(s) of the movie (ex: Romance, Comedy, Children, etc.)
+
+It will be helpful for analysis to create a new data frame containing information from both the `ratings` and `movies` datasets. We can think of this data frame as a very large matrix with users on the rows and movies on the columns. The `spread` function permits us to convert it to this format, but if we try it for the entire matrix it will crash R. Let's instead show the matrix for a few users. Note that the movie titles in the `movies` data frame contain the year the movie was released and we remove this extra information to save space and memory.
 
 ```{r, warning=FALSE, message=FALSE}
 # Load small subset of original data
 url <- "https://raw.githubusercontent.com/datasciencelabs/data/master/movies.csv"
 movies <- movies <- read_csv(url)
-movies$title <- gsub("\\s\\([^)]*\\)", "", movies$title) # Take out (year) from movie titles
+movies$title <- str_replace(movies$title, "\\s\\([^)]*\\)", "") # Take out (year) from movie titles
 
 # Sum number of ratings each movie has and show the top 5
 keep <- ratings %>% 
@@ -81,10 +128,11 @@ tab <- ratings %>%
 tab %>% kable
 ```
 
-Our task is to fill in the `NA`s. We can think of this as a Machine Learning problem. However, it is more complicated than what we have studied up until now, in that each outcome $Y$ has a different set of predictors. To see this, note that if we are predicting the rating for movie $i$ by user $u$, our predictors can be user $u$'s ratings for all other movies, all ratings given to movie $i$ by all other users, as well as all other ratings since these may be informative. For example, the rating of a movie similar to movie $i$ by a user similar to user $u$ will have predictive power. So in essence the entire matrix can be used as predictors for each cell. A further complication is how many cells are empty and in an irregular way. Here is the matrix for a random sample of 100 movies and 100 users.
+**Our task is to fill in the `NA`s**. We can think of this as a Machine Learning problem. However, it is more complicated than what we have studied up until now, in that each outcome $Y$ has a different set of predictors. To see this, note that if we are predicting the rating for movie $i$ by user $u$, our predictors can be user $u$'s ratings for all other movies, all ratings given to movie $i$ by all other users, as well as all other ratings since these may be informative. For example, the rating of a movie similar to movie $i$ by a user similar to user $u$ will have predictive power. So in essence the entire matrix can be used as predictors for each cell. A further complication is how many cells are empty and in an irregular way. Here is the matrix for a random sample of 100 movies and 100 users.
 
 ```{r}
 users <- sample(unique(ratings$userId), 100)
+
 ratings %>% filter(userId %in% users) %>% 
   select(userId, movieId, rating) %>%
   mutate(rating = 1) %>%
@@ -115,7 +163,7 @@ grid.arrange(p1, p2, nrow = 1)
 
 ## Prediction
 
-Now that we know some basic facts about our data set, let's randomly split the data into training and test sets. 
+Now that we know some basic facts about our dataset, let's randomly split the data into training and test sets. 
 
 ```{r}
 # Set a seed for reproducibility
@@ -132,7 +180,7 @@ test_indices <- sample(1:nrow(ratings), n_test, replace=FALSE)
 test <- ratings[test_indices,]
 train <- ratings[-test_indices,]
 
-# Save memory
+# Save memory by removing (rm) the ratings data frame
 rm(ratings)
 
 # Make sure memory is cleared
@@ -141,7 +189,7 @@ gc()
 
 ### Loss function 
 
-The performance statistic used in the Netflix challenge was the residual mean squared error (RMSE). This is related to the MSE error function we described earlier. If $\hat{Y}$ is our prediction and $Y$ is the observed rating, then we prefer recommendation systems that minimize:
+**The performance statistic used in the Netflix challenge was the residual mean squared error (RMSE)**. This is related to the MSE error function we described earlier. If $\hat{Y}$ is our prediction and $Y$ is the observed rating, then we prefer recommendation systems that minimize:
 
 $$
 \mbox{E}\{(\hat{Y} - Y)^2\}
@@ -194,17 +242,18 @@ As we go along we will be comparing different approaches. Let's start by creatin
 
 ```{r}
 rmse_results <- tibble(method = "Just the average", RMSE = naive_rmse)
+rmse_results
 ```
 
-#### Modeling Movie Effects
+### Modeling Movie Effects
 
 We know from experience that some movies are just generally rated higher than others. We can use data to confirm this. For example, if we consider movies with more than 1,000 ratings, the SE error for the average is at most 0.05. Yet plotting these averages we see much greater variability than 0.05:
 
 ```{r}
 train %>% group_by(movieId) %>% 
-  filter(n()>=1000) %>% 
+  filter(n() >= 1000) %>% 
   summarize(avg_rating = mean(rating)) %>% 
-  qplot(avg_rating, geom = "histogram", color = I("black"), bins=30, data = .)
+  qplot(avg_rating, geom = "histogram", color = I("black"), bins = 30, data = .)
 ```
 
 So our intuition that different movies are rated differently is confirmed by data. So we can augment our previous model by adding a term $b_i$ to represent average ranking for movie $i$: 
@@ -212,7 +261,7 @@ So our intuition that different movies are rated differently is confirmed by dat
 $$
 Y_{u,i} = \mu + b_i + \varepsilon_{u,i}
 $$
-In statistics we usually call the $b$s effects, but in the Netflix challenge papers they refer to them as "bias", thus the $b$ notation.
+**In statistics we usually call the $b$s effects, but in the Netflix challenge papers they refer to them as "bias", thus the $b$ notation**.
 
 We can again use least squares (linear regression) to estimate the $b_i$ but note that there are thousands of $b_i$ since each movie gets one. If we try using the `lm()` function to obtain least squares estimates, our computer will probably crash. However, in this particular situation we know that the least squares estimate $\hat{b}_i$ is just the average of $Y_{u,i} - \hat{\mu}$ for each movie $i$. So we can compute them this way.
 
@@ -229,11 +278,11 @@ Let's see how much our prediction improves.
 
 ```{r}
 joined <- test %>% 
-  left_join(movie_means, by='movieId')
+  left_join(movie_means, by = 'movieId')
 any(is.na(joined$b_i))
 ```
 
-Note that there are movies in the test set that are not on the train set. This means we don't have predictions and the `join` above turn these into NAs. Since we have no data, we will simply predict with the average $b_i$ which is 0.
+Note that there are movies in the test set that are not on the train set. This means we don't have predictions and the `join` above turns these into NAs. Since we have no data, we will simply predict with the average $b_i$ which is 0.
 
 ```{r}
 joined <- replace_na(joined, list(b_i=0))
@@ -252,9 +301,9 @@ rmse_results %>% kable
 
 We already see a big improvement. Can we make it better?
 
-#### Motivating Regularization
+### Motivating Regularization
 
-Let's explore where we made mistakes. 
+Let's explore where we made mistakes. Here we calculate the difference between our predicted rating and the truth and display in descending order so we can see which movies we are the worst at predicting. Note we show the absolute value because we are interested in the magnitude of the difference, and not the sign. In other words, a value of 4.5 and -4.5 have the same magnitude and we are equally bad at predicting a rating for these movies. 
 
 ```{r}
 test %>% mutate(prediction = predicted_ratings, 
@@ -317,9 +366,9 @@ One way to think about this is that if we were to fit an effect to every rating,
 
 The equation we now minimize is:
 
-$$\frac{1}{M \times N} \sum_{u=1}^M \left(Y_{u,i} - \mu - b_i\right)^2 + \lambda \sum_{i=1}^I b_i^2$$
+$$\frac{1}{M \times N} \sum_{u=1}^M \left(Y_{u,i} - \mu - b_i\right)^2 + \lambda \sum_{i=1}^N b_i^2$$
 
-Using calculus we can actually show that the values of $b_i$ that minimize this equation are:
+where $M$ is the total number of users and $N$ is the total number of movies. Using calculus we can actually show that the values of $b_i$ that minimize this equation are:
 
 $$
 \hat{b}_i(\lambda) = \frac{1}{\lambda + n_i} \sum_{u=1}^{n_i} \left(Y_{u,i} - \hat{\mu}\right)
@@ -327,8 +376,7 @@ $$
 
 where $n_i$ is the number of ratings made for movie $i$. Note that this will have the desired effect. When $n_i$ is very large, which will give us a stable estimate, then $\lambda$ is effectively ignored. However when $n_i$ is small then the estimate $\hat{b}_i(\lambda)$ is "shrunken" towards 0. The larger $\lambda$ the more we shrink.
 
-Let's compute these regularized estimates of $b_i$ using 
-$\lambda=5$. Then, look at the top 10 best and worst movies now.
+Let's compute these regularized estimates of $b_i$ using $\lambda = 5$. Then, look at the top 10 best and worst movies now.
 
 ```{r}
 lambda <- 5
@@ -403,7 +451,7 @@ qplot(lambdas, rmses)
 lambdas[which.min(rmses)]
 ```
 
-So it looks like a value of $\lambda = 2.5$ gives us the smallest RMSE.
+So it looks like a value of $\lambda = 2.25$ gives us the smallest RMSE.
 
 
 ### User effects
@@ -437,8 +485,10 @@ for each user $u$ with $\hat{\mu}$ and $\hat{b}_i$ calculated above. As with the
 $$
 \hat{b}_u = \frac{1}{\lambda_2 + n_u} \sum_{i=1}^{n_u} (Y_{u,i} - \hat{\mu} - \hat{b}_i)
 $$
+where $n_u$ is the number of users who have rated movie $i$.
 
-We will use  $\lambda_2=5$:
+
+We will use  $\lambda_2 = 5$:
 
 ```{r}
 lambda_2 <- 5
@@ -465,12 +515,12 @@ rmse_results %>% kable
 
 Yay!! We got our RMSE way down!
 
-# Matrix Factorization
+## Matrix Factorization
 
-Another common strategy for ratings prediction is matrix factorization. The winning team used this approach, as described [here](http://www.netflixprize.com/assets/ProgressPrize2008_BellKor.pdf). This approach is very much related to principal component analysis (PCA). This problem will demonstrate how to use PCA to uncover
-broad, latent patterns in user/movie relationships, and how to use the results of PCA to predict unknown user/movie relationships.
+Another common strategy for ratings prediction is matrix factorization. The winning team used this approach, as described [here](http://www.netflixprize.com/assets/ProgressPrize2008_BellKor.pdf). **This approach is very much related to principal component analysis (PCA). This problem will demonstrate how to use PCA to uncover
+broad, latent patterns in user/movie relationships, and how to use the results of PCA to predict unknown user/movie relationships**.
 
-To use the tools we have learned we need to create a manageable dataset. We will do this by filtering the training set to movies that have been widely rated. We will also focus on users that rate many movies. Finally, we focus on movies and users that appear in the test set.
+To use the tools we have learned we need to create a manageable dataset. We will do this by filtering the training set to movies that have been widely rated (rated by many users). We will also focus on users that rate many movies. Finally, we focus on movies and users that appear in the test set.
 
 ```{r}
 train_small <- train %>% 
@@ -509,7 +559,7 @@ Some examples of movies that correlate:
 
 ```{r}
 i <- grep("Godfather, The", movie_titles)
-j <- grep("Goodf", movie_titles)
+j <- grep("Goodfellas", movie_titles)
 qplot(r[,i], r[,j], xlab = movie_titles[i], ylab = movie_titles[j])
 ```
 
@@ -586,7 +636,7 @@ $$
 r_{u,i} \approx p_u q_i 
 $$
 
-with $\mathbf{p} = (p_1, \dots, p_i)$ a $12\times 1$ vector and $\mathbf{q}=(q_1, \dots, q_5)$ a $5 \times 1$ vector. We started with 60 residuals but it appears we can explain most of the variability with just 16 parameters. 
+with $\mathbf{p} = (p_1, \dots, p_i)$ a $12\times 1$ vector and $\mathbf{q}=(q_1, \dots, q_5)$ a $5 \times 1$ vector. We started with 60 residuals but it appears we can explain most of the variability with just a few parameters. 
 
 The name _matrix factorization_ comes from the fact that if we use matrix multiplication, we can write 
 

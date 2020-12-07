@@ -19,8 +19,8 @@ Let's continue with the digits data. We read-in the data:
 ```{r, message=FALSE, warning=FALSE}
 url <- "https://raw.githubusercontent.com/datasciencelabs/data/master/hand-written-digits-train.csv"
 
-if(!exists("digits")) digits <- read_csv(url)
-#digits <- read_csv(url)
+#if(!exists("digits")) digits <- read_csv(url)
+digits <- read_csv(url)
 ```
 
 To simplify the problem we will try to distinguish 2s from 7s. So we subset to only those digits.
@@ -114,7 +114,7 @@ true_f_plot
 For illustration purposes let's take a subset of 1,000 handwritten digits:
 ```{r}
 set.seed(1)
-dat <- sample_n(dat, 1000) %>% select(y, X_1, X_2)
+dat <- sample_n(dat, 1000) %>% dplyr::select(y, X_1, X_2)
 dat
 ```
 
@@ -278,7 +278,6 @@ p0 <- get_p(params[1,], dat = test_set)
 p1 <- get_p(params[2,], dat = test_set)
 pi <- 0.5
 pred_lda <- pi*p1/(pi*p1 + (1-pi)*p0)
-
 roc_lda <- roc(test_set$y, pred_lda)
 plot(roc_qda)
 plot(roc_lda, add=TRUE, col=2)
@@ -290,6 +289,7 @@ We can also compare to KNN with two different values of `k`: 5 and 51.
 
 ```{r}
 fit <- knn3(y~., data = train_set, k = 5)
+
 pred_knn_5 <- predict(fit, newdata = test_set)[,2]
 roc_knn_5 <- roc(test_set$y, pred_knn_5)
 plot(roc_qda)
@@ -372,7 +372,7 @@ We'll create a training set and test set so we can test out how each method does
 
 ```{r}
 set.seed(1)
-dat <- sample_n(dat, 3000) %>% select(label, X_1, X_2) %>% mutate(label = as.factor(label))
+dat <- sample_n(dat, 3000) %>% dplyr::select(label, X_1, X_2) %>% dplyr::mutate(label = as.factor(label))
 inTrain   <- createDataPartition(y = dat$label, p = 0.5)
 train_set <- slice(dat, inTrain$Resample1)
 test_set  <- slice(dat, -inTrain$Resample1)
