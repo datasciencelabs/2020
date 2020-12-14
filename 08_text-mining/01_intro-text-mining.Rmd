@@ -92,7 +92,7 @@ We can access these works using `gutenberg_download()` and the [Project Gutenber
 Let's look at two Charles Dickens books: 
 
 1. A Christmas Carol (Project Gutenberg ID: 19337)
-2. Oliver Twist (Project Gutenberg ID: 263)
+2. Oliver Twist (Project Gutenberg ID: 730)
 
 ```{r, message=FALSE}
 dickens <- gutenberg_download(c(19337, 730))
@@ -251,7 +251,7 @@ nrc_joy <- get_sentiments("nrc") %>%
   filter(sentiment == "joy")
 
 tidy_books %>%
-  filter(book == "Emma") %>%
+  filter(book == "Mansfield Park") %>%
   inner_join(nrc_joy) %>%
   count(word, sort = TRUE)
 ```
