@@ -13,7 +13,7 @@ output: html_document
 
 ## B. Spring Data Science Courses
 
-### BST 263 - Applied Machine Learning (Full Spring)
+### BST 263 - Statistical Learning (Full Spring)
 * **Language: R or Python**
 * Material: [An Introduction to Statistical Learning](http://www-bcf.usc.edu/~gareth/ISL/ISLR%20Seventh%20Printing.pdf)
 * Additional Reading: [The Elements of Statistical Learning](https://web.stanford.edu/~hastie/Papers/ESLII.pdf)
